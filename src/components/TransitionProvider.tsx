@@ -119,6 +119,12 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
     if (!stripes) return;
     const chars = splitRef.current?.chars ?? [];
 
+    // Kill any in-flight cover tweens before starting the reveal — guards
+    // against rapid navigation / browser back leaving two timelines on the
+    // same targets.
+    gsap.killTweensOf(stripes);
+    gsap.killTweensOf(chars);
+
     const tl = gsap.timeline({
       onComplete: () => {
         splitRef.current?.revert();

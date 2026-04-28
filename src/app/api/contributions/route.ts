@@ -38,6 +38,13 @@ export async function GET() {
   const username = "sunday19x3";
   const token = process.env.GITHUB_TOKEN;
 
+  if (!token) {
+    return Response.json(
+      { error: "GITHUB_TOKEN is required for contributions" },
+      { status: 501 },
+    );
+  }
+
   const query = `
     query($login: String!) {
       user(login: $login) {
@@ -63,7 +70,7 @@ export async function GET() {
     headers: {
       Accept: "application/vnd.github+json",
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ query, variables: { login: username } }),
     next: { revalidate: 600 },

@@ -17,15 +17,16 @@ export function TransitionLink({
 }: Props) {
   const { navigate } = useTransition();
 
+  const isExternal = /^(https?:)?\/\//.test(href);
+
   const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
-    console.log("[TL] click", href);
     onClick?.(e);
     if (e.defaultPrevented) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     if (e.button !== 0) return;
+    if (isExternal) return;
     e.preventDefault();
     navigate({ href, label });
-    console.log("[TL] navigate called");
   };
 
   return (
