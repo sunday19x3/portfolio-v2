@@ -59,6 +59,7 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
         borderBottomRightRadius: FLAT,
       });
     }
+    gsap.set(stripesRef.current, { autoAlpha: 1 });
     gsap.set(labelRef.current, { autoAlpha: 0 });
   }, []);
 
@@ -161,6 +162,7 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
 
       <div
         className="pointer-events-none fixed inset-0 z-[9998] flex"
+        style={{ visibility: "hidden", opacity: 0 }}
         aria-hidden
         ref={stripesRef}
       >
@@ -170,7 +172,6 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
             className="h-full flex-1"
             style={{
               background: "var(--accent)",
-              transform: "translateY(100%)",
               borderTopLeftRadius: CURVE,
               borderTopRightRadius: CURVE,
             }}

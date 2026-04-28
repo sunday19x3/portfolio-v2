@@ -7,6 +7,7 @@ import {
   useGlobalReveal,
 } from "@/components/portfolio/hooks";
 import { Logo } from "@/components/portfolio/Logo";
+import { HanoiClock } from "@/components/portfolio/HanoiClock";
 
 const SECTIONS = [
   { id: "context", label: "Context" },
@@ -73,7 +74,7 @@ function DNav() {
       >
         <span className="dnav__back-arrow">←</span> All work
       </TransitionLink>
-      <span className="nav__loc">VN · GMT+7 · Available Q2 ’26</span>
+      <span className="nav__loc">Hanoi · <HanoiClock /></span>
     </header>
   );
 }
