@@ -48,3 +48,31 @@ Code reviewer pass landed seven BLOCKING/HIGH and three MEDIUM items; all addres
 
 ### Audit follow-ups still open
 None from the audit. Earlier open items (real metrics + role narratives on detail pages) remain.
+
+---
+
+## 2026-04-28 (deploy + analytics) — production cutover
+
+### Vercel project + domains (operational, not in repo)
+- New Vercel project `portfolio-v2` (`prj_Sl2j4iXFNh4EWQqoSzFZXbvoi4X7`) created via API, linked to GitHub repo `sunday19x3/portfolio-v2`. First production deploy on commit `0ae6120` went READY.
+- Domain swap on Vercel:
+  - Removed `sunday19x3.xyz` from old `portfolio` project.
+  - Attached `legacy.sunday19x3.xyz` to old `portfolio` project (verified=true, DNS auto-resolved on Vercel DNS).
+  - Attached `sunday19x3.xyz` to new `portfolio-v2` project.
+- Verified: `sunday19x3.xyz` serves new portfolio (`<title>Sunday — Frontend & Web3 developer</title>`); `legacy.sunday19x3.xyz` serves old portfolio (`<title>Hoang Son Pham - Front-end Developer</title>`).
+- Future pushes to `main` auto-deploy via GitHub integration.
+
+### Env vars status
+- New project has **no env vars set yet**.
+- `/api/contributions` returns 501 in production (needs `GITHUB_TOKEN`).
+- `/api/deployments` returns empty array (needs `VERCEL_TOKEN`, `VERCEL_TEAM_ID`).
+- `/api/latest-commit` works unauth'd against `/search/commits` — but adding `GITHUB_TOKEN` is recommended for higher rate limit.
+- User to provide tokens; `VERCEL_TEAM_ID = team_ZtHNFUxCNfjILXI1kY02dh3z` is non-secret and ready to set.
+
+### Changed in this commit
+- `src/app/layout.tsx` — added `@vercel/analytics/next` `<Analytics />` and `@vercel/speed-insights/next` `<SpeedInsights />` mounted alongside `TransitionProvider` in `<body>`.
+- `package.json` / `pnpm-lock.yaml` — `@vercel/analytics` and `@vercel/speed-insights` added.
+- Verified via `pnpm build`: typecheck clean, all 14 routes still prerender as expected.
+
+### Why
+- Site is live on Vercel; analytics + speed insights start collecting data on next deploy with zero further config.
