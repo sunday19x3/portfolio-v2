@@ -1,0 +1,272 @@
+.scope { display: contents; }
+.scope[data-state='preparing'] [data-build-target] { opacity: 0; }
+.scope[data-state='preparing'] header { border-bottom-color: transparent; }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  overflow: clip;
+}
+
+/* A separate canvas keeps scroll tracking out of GSAP's transform cache. */
+.overlayCanvas { position: absolute; inset: 0; translate: var(--build-offset-x, 0px) var(--build-offset-y, 0px); }
+/* Rulers stay on the viewport edges; their markers follow the content axis. */
+.rulerX, .rulerY { translate: calc(0px - var(--build-offset-x, 0px)) calc(0px - var(--build-offset-y, 0px)); }
+
+.cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  transform-origin: 0 0;
+}
+
+.design { color: #4b71dd; }
+.copy { color: #b65b35; }
+.build { color: #31816c; }
+.heroTitle { color: #8d64c5; }
+.heroCopy { color: #a77a2f; }
+.heroTop { color: #39878c; }
+.heroBottom { color: #b7547d; }
+
+/* (2, 2) is the SVG tip: offset it so the timeline coordinate is the hotspot. */
+.arrow { position: absolute; left: -2px; top: -2px; width: 24px; height: 24px; }
+.cursorClick {
+  position: absolute; left: -12px; top: -12px; width: 24px; height: 24px;
+  border: 2px solid currentColor; border-radius: 50%; opacity: 0;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  transform-origin: center;
+}
+.cursorLabel {
+  position: absolute;
+  left: 18px;
+  top: 21px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font: 600 11px/1.3 var(--font-sans);
+  white-space: nowrap;
+}
+.cursor[data-dock='above'] .cursorLabel { top: auto; bottom: 12px; left: 10px; }
+.cursor[data-dock='below'] .cursorLabel { top: 21px; bottom: auto; left: 18px; }
+.design .cursorLabel { background: #4b71dd; color: white; }
+.copy .cursorLabel { background: #b65b35; color: white; }
+.build .cursorLabel { background: #31816c; color: white; }
+.heroTitle .cursorLabel { background: #8d64c5; color: white; }
+.heroCopy .cursorLabel { background: #a77a2f; color: white; }
+.heroTop .cursorLabel { background: #39878c; color: white; }
+.heroBottom .cursorLabel { background: #b7547d; color: white; }
+/* Keep ownership badges clear of the title and the text along the right edge. */
+.heroTitle .cursorLabel { top: auto; bottom: 12px; left: 10px; }
+.heroTop .cursorLabel, .heroBottom .cursorLabel { left: auto; right: 12px; }
+.heroBottom .cursorLabel { top: auto; bottom: 12px; }
+
+.text { display: inline-block; position: relative; white-space: pre; }
+.ink { position: absolute; top: 0; left: 0; display: inline-flex; align-items: center; opacity: 0; white-space: pre; pointer-events: none; }
+.caret { width: 1px; height: 1em; margin-left: 1px; background: var(--typing-color, #b65b35); }
+.clock { --typing-color: #31816c; }
+
+.selection { position: absolute; left: 0; top: 0; border: 1px solid currentColor; opacity: 0; }
+.selection::before, .selection::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border: 1px solid currentColor;
+  background: var(--bg);
+}
+.selection::before { left: -3px; top: -3px; }
+.selection::after { right: -3px; bottom: -3px; }
+.divider {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 1px;
+  background: var(--line);
+  transform-origin: left center;
+  opacity: 0;
+}
+
+.frame { position: absolute; left: 0; top: 0; opacity: 0; }
+.horizontalEdge, .verticalEdge, .frameHandle { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.horizontalEdge { width: 100%; height: 1px; background: currentColor; }
+.verticalEdge { width: 1px; height: 100%; background: currentColor; }
+.frameHandle { width: 5px; height: 5px; margin: -2px; border: 1px solid currentColor; background: var(--bg); }
+.heroCaret { position: absolute; left: 0; top: 0; width: 1px; background: currentColor; opacity: 0; }
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  /* The builder owns desktop Hero reveals; v2 still owns mobile reveals. */
+  .hero :global(.pf-split-char) { opacity: 1; transform: none; transition: none; }
+  .hero :global(.pf-mask) > span { transform: none; transition: none; }
+  .scope[data-state='preparing'] .hero :global(.pf-split-char),
+  .scope[data-state='preparing'] .hero :global(.pf-mask),
+  .scope[data-state='preparing'] [data-hero-text],
+  .scope[data-state='preparing'] .hero :global(.hero__cue-line) { opacity: 0; }
+  .scope[data-state='playing'] .hero :global(.hero__cue-line) { animation: none; }
+}
+
+@media (max-width: 1023px), (hover: none), (pointer: coarse) {
+  .overlay { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay { display: none; }
+}
+
+.tickerScope { display: contents; }
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .tickerScope[data-now-state='waiting'] :global(.ticker) { border-color: transparent; background: transparent; }
+  .tickerScope[data-now-state='waiting'] :global(.ticker__label),
+  .tickerScope[data-now-state='waiting'] :global(.ticker__rotor),
+  .tickerScope[data-now-state='waiting'] :global(.ticker__pips) { opacity: 0; }
+  .tickerScope:not([data-now-state='complete']) :global(.pf-signal__bar) { animation: none; }
+  .tickerScope:not([data-now-state='complete']) :global(.ticker__rotor-track) { transition: none; }
+}
+
+.workScope { display: contents; }
+.workDraft {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  font: 600 clamp(48px, 8vw, 128px)/0.9 var(--font-serif);
+  letter-spacing: -0.03em;
+  white-space: pre;
+  transform-origin: left top;
+}
+.workSelection {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  background: #4b71dd22;
+  transform-origin: left center;
+}
+.cursor[data-build-cursor='WorkCopy'] .cursorLabel,
+.cursor[data-build-cursor='WorkDesign'] .cursorLabel { top: auto; bottom: 12px; left: 10px; }
+.cursor[data-build-task='work-emphasis'] .cursorLabel { bottom: clamp(40px, 4vw, 64px); }
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  /* Only the desktop builder owns this reveal; mobile keeps the v2 transition. */
+  .workScope :global(.work__head) { opacity: 1; transform: none; transition: none; }
+}
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .workScope[data-work-state='waiting'] :global(.work__head) { border-bottom-color: transparent; }
+  .workScope[data-work-state='waiting'] :global(.work__title),
+  .workScope[data-work-state='waiting'] :global(.pf-eyebrow) { opacity: 0; }
+}
+
+.sectionScope { display: contents; }
+.projectCaption { display: none; }
+/* display:contents preserves the v2 grid items through the controller wrapper. */
+.sectionScope[data-scene-kind='activity'] > :global(.signal) { grid-column: 1 / -1; }
+.sectionScope[data-scene-kind='sticky'] > :global(.sticky__line) {
+  grid-area: 1 / 1;
+  transition: opacity 600ms var(--ease-out), transform 800ms var(--ease-out);
+}
+.generationTiles {
+  position: absolute; inset: 0 auto auto 0; display: grid;
+  grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(4, 1fr);
+  opacity: 0; overflow: hidden;
+}
+.generationTiles i { background: var(--bg-alt); border: 0.5px solid var(--line); }
+.generationStatus {
+  position: absolute; left: 0; top: 0; opacity: 0;
+  padding: 6px 9px; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 3px; color: var(--fg-muted); font: 10px/1.3 var(--font-mono);
+}
+.sceneOverlay .cursor { z-index: 2; }
+.sceneOverlay .cursorLabel { top: auto; bottom: 12px; left: 10px; }
+.sceneOverlay .cursor[data-dock='left'] .cursorLabel { left: auto; right: 12px; }
+.sceneOverlay .cursor[data-dock='below'] .cursorLabel { top: 21px; bottom: auto; left: 18px; }
+.sceneOverlay .cursor[data-build-phase='cloning']::after {
+  content: '+'; position: absolute; left: 18px; top: 2px;
+  width: 13px; height: 13px; border: 1px solid currentColor;
+  background: var(--bg); border-radius: 2px; text-align: center;
+  font: 600 12px/11px var(--font-mono);
+}
+
+/* Temporary editor chrome, present only while one cursor adjusts spacing. */
+.layoutPass { position: absolute; inset: 0; pointer-events: none; opacity: 0; color: var(--accent); }
+.rulerX, .rulerY {
+  position: absolute; background-color: var(--bg);
+  color: var(--accent); font: 9px/1 var(--font-mono);
+}
+.rulerX {
+  left: 20px; right: 0; top: 0; height: 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background-image: repeating-linear-gradient(90deg, var(--accent) 0 1px, transparent 1px 10px);
+  background-size: 100% 5px; background-position: left bottom; background-repeat: no-repeat;
+}
+.rulerY {
+  left: 0; top: 20px; bottom: 0; width: 20px;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background-image: repeating-linear-gradient(180deg, var(--accent) 0 1px, transparent 1px 10px);
+  background-size: 5px 100%; background-position: right top; background-repeat: no-repeat;
+}
+.rulerNumberX { position: absolute; top: 2px; margin-left: -20px; transform: translateX(-50%); }
+.rulerNumberY { position: absolute; left: 8px; transform: translate(-50%, -50%) rotate(-90deg); }
+.layoutGuideX, .layoutGuideY { position: absolute; left: 0; top: 0; opacity: 0.4; }
+.layoutGuideX { top: calc(20px - var(--build-offset-y, 0px)); height: calc(100% - 20px); border-left: 1px dashed currentColor; }
+.layoutGuideY { left: calc(20px - var(--build-offset-x, 0px)); width: calc(100% - 20px); border-top: 1px dashed currentColor; }
+.rulerMarkerX, .rulerMarkerY { position: absolute; left: 0; top: 0; background: currentColor; }
+.rulerMarkerX { top: calc(14px - var(--build-offset-y, 0px)); width: 5px; height: 6px; margin-left: -2px; }
+.rulerMarkerY { left: calc(14px - var(--build-offset-x, 0px)); width: 6px; height: 5px; margin-top: -2px; }
+.layoutOutline { position: absolute; left: 0; top: 0; border: 1px solid currentColor; opacity: 0.65; }
+.layoutBand {
+  position: absolute; left: 0; top: 0; transform-origin: left top;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.layoutMeasureX, .layoutMeasureY { position: absolute; left: 0; top: 0; background: currentColor; transform-origin: left top; }
+.layoutMeasureX::before, .layoutMeasureX::after, .layoutMeasureY::before, .layoutMeasureY::after {
+  content: ''; position: absolute; background: currentColor;
+}
+.layoutMeasureX::before, .layoutMeasureX::after { width: 1px; height: 7px; top: -3px; }
+.layoutMeasureX::before { left: 0; }
+.layoutMeasureX::after { right: 0; }
+.layoutMeasureY::before, .layoutMeasureY::after { height: 1px; width: 7px; left: -3px; }
+.layoutMeasureY::before { top: 0; }
+.layoutMeasureY::after { bottom: 0; }
+.layoutValue {
+  position: absolute; left: 0; top: 0; padding: 5px 7px;
+  background: var(--bg); border: 1px solid currentColor; border-radius: 2px;
+  font: 10px/1 var(--font-mono); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.basicText {
+  position: absolute; opacity: 0; pointer-events: none;
+  font: 400 16px/1.45 system-ui, sans-serif; letter-spacing: 0;
+  color: var(--fg); text-align: left; text-transform: none;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .sectionScope :global(.pf-reveal) { opacity: 1; transform: none; transition: none; }
+  .sectionScope[data-scene-kind='project'] :global(.pf-imgph)::after { display: none; }
+  .projectCaption {
+    display: block; position: absolute; bottom: 12px; left: 14px;
+    font: 10.5px/1.55 var(--font-mono); letter-spacing: 0.06em;
+    color: var(--fg-muted); background: var(--bg); padding: 2px 6px;
+    border: 1px solid var(--line); border-radius: 1px;
+  }
+  .sectionScope[data-scene-kind='sticky'] [data-build-text] { display: inline-block; vertical-align: top; }
+}
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .sectionScope[data-scene-state='waiting'] [data-build-text],
+  .sectionScope[data-scene-state='waiting'] [data-build-media],
+  .sectionScope[data-scene-state='waiting'] [data-build-box],
+  .sectionScope[data-scene-state='waiting'] [data-build-visual] { opacity: 0; }
+  .sectionScope[data-scene-state='waiting'] [data-build-rule] { border-top-color: transparent; }
+  .sectionScope:not([data-scene-state='complete']) > :global(.sticky__line) { transition: none; }
+  /* Hover styling waits for natural completion; it never skips the scene. */
+  .scope:not([data-state='complete']) > header :global(.pf-underline)::after,
+  .sectionScope:not([data-scene-state='complete']) :global(.pf-underline)::after { transform: scaleX(0) !important; transition: none; }
+  .sectionScope:not([data-scene-state='complete']) :global(.stack__tip) { visibility: hidden; }
+  .sectionScope:not([data-scene-state='complete']) :global(.stack__kw-text),
+  .sectionScope:not([data-scene-state='complete']) :global(.contact__mail) { color: var(--fg) !important; transition: none; }
+  .sectionScope:not([data-scene-state='complete']) [data-magnet],
+  .sectionScope:not([data-scene-state='complete']) :global(.pf-imgph__img) { transform: none !important; transition: none; }
+}

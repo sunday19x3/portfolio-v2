@@ -67,6 +67,7 @@ export function HoverFlip({ text }: { text: string }) {
       if (!link) return;
 
       const enter = () => {
+        if (link.closest('[data-build-hover-lock]')) return;
         gsap.killTweensOf([splitA.chars, splitB.chars]);
         gsap.to(splitA.chars, {
           yPercent: -110,
@@ -82,6 +83,7 @@ export function HoverFlip({ text }: { text: string }) {
         });
       };
       const leave = () => {
+        if (link.closest('[data-build-hover-lock]')) return;
         gsap.killTweensOf([splitA.chars, splitB.chars]);
         gsap.to(splitA.chars, {
           yPercent: 0,

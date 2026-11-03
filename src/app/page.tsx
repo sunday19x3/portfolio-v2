@@ -1,11 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useCounter, useCursorAndMagnets, useGlobalReveal, useStickyProgress } from '@/components/portfolio/hooks'
-import { EmphasizeAround, HoverFlip, MaskLine, SplitText } from '@/components/portfolio/text'
-import { Logo } from '@/components/portfolio/Logo'
-import { HanoiClock } from '@/components/portfolio/HanoiClock'
+import { EmphasizeAround, HoverFlip } from '@/components/portfolio/text'
+import { HomeBuildExperience } from '@/components/home-build/HomeBuildExperience'
+import { HomeBuildHero } from '@/components/home-build/HomeBuildHero'
+import { HomeBuildTicker } from '@/components/home-build/HomeBuildTicker'
+import { HomeBuildWorkHeading } from '@/components/home-build/HomeBuildWorkHeading'
+import { HomeBuildSection } from '@/components/home-build/HomeBuildSection'
+import buildStyles from '@/components/home-build/home-build.module.css'
 import { TransitionLink } from '@/components/TransitionLink'
 
 const SUNDAY = {
@@ -79,194 +83,11 @@ const SUNDAY = {
   ],
 }
 
-const TICKER_ROWS: { glyph: string; body: React.ReactNode }[] = [
-  {
-    glyph: '❡',
-    body: (
-      <>
-        reading <em>Harry Potter and the Goblet of Fire</em> — <span style={{ color: 'var(--fg-muted)' }}>62%</span>
-      </>
-    ),
-  },
-  {
-    glyph: '✦',
-    body: (
-      <>
-        played badminton — won doubles <em>21–18</em> · Tuesday
-      </>
-    ),
-  },
-]
-
-type Deployment = { name: string; host: string; createdAt: number }
-type LatestCommit = { sha: string; message: string; repo: string; date: string }
-
-function relTime(ms: number) {
-  const diff = Date.now() - ms
-  const m = Math.round(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.round(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.round(h / 24)
-  return `${d}d ago`
-}
-
 const STICKY_LINES = [
   { text: 'I build things.', emph: 'build' },
   { text: 'I ship things.', emph: 'ship' },
   { text: 'I maintain them.', emph: 'maintain' },
 ]
-
-function Nav() {
-  return (
-    <header className='nav'>
-      <span className='nav__mark' aria-label='Sunday'>
-        <Logo height={22} />
-      </span>
-      <nav className='nav__items'>
-        <a href='#work' className='pf-underline' data-magnet data-magnet-radius='80' data-magnet-strength='0.25'>
-          Work
-        </a>
-        <a href='#stack' className='pf-underline' data-magnet data-magnet-radius='80' data-magnet-strength='0.25'>
-          Stack
-        </a>
-        <a href='#contact' className='pf-underline' data-magnet data-magnet-radius='80' data-magnet-strength='0.25'>
-          Contact
-        </a>
-      </nav>
-      <span className='nav__loc'>
-        Hanoi · <HanoiClock />
-      </span>
-    </header>
-  )
-}
-
-function Hero() {
-  return (
-    <section className='hero'>
-      <div className='hero__top'>
-        <span className='pf-eyebrow'>Portfolio · 2026</span>
-        <span className='pf-eyebrow'>№ 001 / Sunday</span>
-      </div>
-      <div className='hero__center'>
-        <h1 className='hero__title' data-hover='text'>
-          <SplitText text='Sunday' />
-        </h1>
-        <p className='hero__manifesto'>
-          <MaskLine text='Frontend & Web3 developer, based in Hanoi.' delay={500} />
-          <br />
-          <MaskLine text='Builds production systems, ships side projects monthly,' delay={620} />
-          <br />
-          <MaskLine text='prefers clean code over clever code.' delay={740} />
-        </p>
-      </div>
-      <div className='hero__bottom'>
-        <div className='hero__cue'>
-          <span className='hero__cue-line' />
-          <span className='pf-eyebrow'>Scroll · 6 sections</span>
-        </div>
-        <div className='pf-eyebrow'>Developer · since 2020</div>
-      </div>
-    </section>
-  )
-}
-
-function Ticker() {
-  const [deployments, setDeployments] = useState<Deployment[]>([])
-  const [commit, setCommit] = useState<LatestCommit | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/deployments')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && Array.isArray(data?.deployments)) setDeployments(data.deployments)
-      })
-      .catch(() => {})
-    fetch('/api/latest-commit')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: LatestCommit | null) => {
-        if (!cancelled && data && 'sha' in data) setCommit(data)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const rows = [
-    ...(commit
-      ? [
-          {
-            glyph: '↳',
-            body: (
-              <>
-                shipped{' '}
-                <code>
-                  <span className='sha'>{commit.sha.slice(0, 4)}···</span> {commit.message}
-                </code>{' '}
-                <em>· {relTime(+new Date(commit.date))}</em>
-              </>
-            ),
-          },
-        ]
-      : []),
-    ...TICKER_ROWS,
-    ...deployments.map((d) => ({
-      glyph: '▲',
-      body: (
-        <>
-          deployed <em>{d.host}</em> — <span style={{ color: 'var(--fg-muted)' }}>{relTime(d.createdAt)}</span>
-        </>
-      ),
-    })),
-  ]
-
-  const [i, setI] = useState(0)
-  useEffect(() => {
-    if (rows.length === 0) return
-    const id = setInterval(() => setI((v) => (v + 1) % rows.length), 3600)
-    return () => clearInterval(id)
-  }, [rows.length])
-  const trackRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (trackRef.current) {
-      trackRef.current.style.transform = `translateY(${-i * 30}px)`
-    }
-  }, [i])
-  return (
-    <section className='ticker' id='now' aria-label='Now'>
-      <div className='ticker__inner'>
-        <span className='ticker__label'>
-          <span className='pf-signal' aria-hidden>
-            <span className='pf-signal__bar' />
-            <span className='pf-signal__bar' />
-            <span className='pf-signal__bar' />
-            <span className='pf-signal__bar' />
-          </span>
-          <span className='pf-eyebrow'>Now</span>
-        </span>
-        <div className='ticker__rotor'>
-          <div className='ticker__rotor-track' ref={trackRef}>
-            {rows.map((r, idx) => (
-              <div className='ticker__row' key={idx}>
-                <span className='glyph' aria-hidden>
-                  {r.glyph}
-                </span>
-                <span>{r.body}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className='ticker__pips' aria-hidden>
-          {rows.map((_, idx) => (
-            <span key={idx} className={`ticker__pip ${idx === i ? 'is-on' : ''}`} />
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
 
 function Project({ p, i }: { p: (typeof SUNDAY.projects)[number]; i: number }) {
   const flipped = i % 2 === 1
@@ -275,6 +96,7 @@ function Project({ p, i }: { p: (typeof SUNDAY.projects)[number]; i: number }) {
   const mediaImage = (
     <div
       className='pf-imgph'
+      data-build-media
       data-label={p.ph}
       style={{ '--ratio': p.ratio ?? (flipped ? '5 / 4' : '4 / 3') } as React.CSSProperties}>
       {p.image ? (
@@ -289,53 +111,51 @@ function Project({ p, i }: { p: (typeof SUNDAY.projects)[number]; i: number }) {
       ) : (
         <div className='pf-imgph__zoom' />
       )}
+      <span className={buildStyles.projectCaption} data-build-text='caption'>{p.ph}</span>
     </div>
   )
   return (
-    <article
-      className={`project pf-project pf-reveal ${flipped ? 'is-flipped' : ''}`}
-      style={{ transitionDelay: `${i * 80}ms` }}>
-      <TransitionLink href={href} label={p.name} className='project__media' data-hover='cursor'>
-        {mediaImage}
-      </TransitionLink>
-      <div className='project__body'>
-        <div className='project__head'>
-          <span className='pf-eyebrow'>
-            <span className='project__no'>№ {p.no}</span> <span className='project__year'>· {p.year}</span>
-          </span>
-        </div>
-        <h3 className='project__name'>
-          <TransitionLink href={href} label={p.name} className='pf-underline flip-link' data-hover='cursor'>
-            <HoverFlip text={p.name} />
-          </TransitionLink>
-        </h3>
-        <p className='project__problem'>{p.problem}</p>
-        <div className='project__foot'>
-          <div className='pf-tags'>
-            {p.stack.map((t) => (
-              <span key={t} className='pf-tag'>
-                {t}
-              </span>
-            ))}
+    <HomeBuildSection id={p.id} kind='project'>
+      <article data-build-anchor
+        className={`project pf-project pf-reveal ${flipped ? 'is-flipped' : ''}`}
+        style={{ transitionDelay: `${i * 80}ms` }}>
+        <TransitionLink href={href} label={p.name} className='project__media' data-hover='cursor'>
+          {mediaImage}
+        </TransitionLink>
+        <div className='project__body'>
+          <div className='project__head' data-build-text='project-meta'>
+            <span className='pf-eyebrow'>
+              <span className='project__no'>№ {p.no}</span> <span className='project__year'>· {p.year}</span>
+            </span>
           </div>
-          <TransitionLink href={url} label={p.name} className='project__link pf-underline'>
-            {p.url} ↗
-          </TransitionLink>
+          <h3 className='project__name' data-build-text='project-title'>
+            <TransitionLink href={href} label={p.name} className='pf-underline flip-link' data-hover='cursor'>
+              <HoverFlip text={p.name} />
+            </TransitionLink>
+          </h3>
+          <p className='project__problem' data-build-text='project-description'>{p.problem}</p>
+          <div className='project__foot' data-build-text='project-links'>
+            <div className='pf-tags'>
+              {p.stack.map((t) => (
+                <span key={t} className='pf-tag'>
+                  {t}
+                </span>
+              ))}
+            </div>
+            <TransitionLink href={url} label={p.name} className='project__link pf-underline'>
+              {p.url} ↗
+            </TransitionLink>
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+    </HomeBuildSection>
   )
 }
 
 function Work() {
   return (
     <section id='work' className='work'>
-      <header className='work__head pf-reveal'>
-        <span className='pf-eyebrow'>Selected · 2020 — 2026</span>
-        <h2 className='work__title'>
-          Four <em>things</em> I built.
-        </h2>
-      </header>
+      <HomeBuildWorkHeading />
       <div className='work__list'>
         {SUNDAY.projects.map((p, i) => (
           <Project key={p.id} p={p} i={i} />
@@ -359,9 +179,11 @@ function Sticky() {
             const opacity = Math.max(0, 1 - dist / (seg * 0.85))
             const y = (p - center) * 80
             return (
-              <h2 key={i} className='sticky__line' style={{ opacity, transform: `translateY(${-y}px)` }}>
-                <EmphasizeAround text={l.text} emph={l.emph} className='sticky__emph' />
-              </h2>
+              <HomeBuildSection key={l.emph} id={`sticky${i}`} kind='sticky' trigger='sticky' stickyIndex={i}>
+                <h2 className='sticky__line' data-build-anchor style={{ opacity, transform: `translateY(${-y}px)` }}>
+                  <span data-build-text='statement'><EmphasizeAround text={l.text} emph={l.emph} className='sticky__emph' /></span>
+                </h2>
+              </HomeBuildSection>
             )
           })}
         </div>
@@ -391,20 +213,22 @@ function StackKW({ children, tip }: { children: React.ReactNode; tip: string }) 
 
 function Stack() {
   return (
-    <section id='stack' className='stack'>
-      <header className='stack__head pf-reveal'>
-        <span className='pf-eyebrow'>Tools I reach for</span>
-      </header>
-      <p className='stack__copy pf-reveal'>
-        Six years writing <StackKW tip='Daily driver since 2020'>TypeScript</StackKW>. Web3 wired through{' '}
-        <StackKW tip='Wallet connection · since 2023'>Wagmi</StackKW> on{' '}
-        <StackKW tip='Mimboku · Punkga.me'>Story Protocol</StackKW> and{' '}
-        <StackKW tip='Pyxis Safe · since 2023'>Cosmos</StackKW>.{' '}
-        <StackKW tip='In real production code, not demos'>Claude</StackKW> writes alongside me now — production, not
-        demos. <StackKW tip='Default deploy target'>Vercel</StackKW> to ship,{' '}
-        <StackKW tip='Default styling · since 2022'>Tailwind</StackKW> to paint, the open web to live on.
-      </p>
-    </section>
+    <HomeBuildSection id='stack' kind='stack'>
+      <section id='stack' className='stack' data-build-rule data-build-anchor>
+        <header className='stack__head pf-reveal' data-build-text='stack-label'>
+          <span className='pf-eyebrow'>Tools I reach for</span>
+        </header>
+        <p className='stack__copy pf-reveal' data-build-text='stack-copy'>
+          Six years writing <StackKW tip='Daily driver since 2020'>TypeScript</StackKW>. Web3 wired through{' '}
+          <StackKW tip='Wallet connection · since 2023'>Wagmi</StackKW> on{' '}
+          <StackKW tip='Mimboku · Punkga.me'>Story Protocol</StackKW> and{' '}
+          <StackKW tip='Pyxis Safe · since 2023'>Cosmos</StackKW>.{' '}
+          <StackKW tip='In real production code, not demos'>Claude</StackKW> writes alongside me now — production, not
+          demos. <StackKW tip='Default deploy target'>Vercel</StackKW> to ship,{' '}
+          <StackKW tip='Default styling · since 2022'>Tailwind</StackKW> to paint, the open web to live on.
+        </p>
+      </section>
+    </HomeBuildSection>
   )
 }
 
@@ -420,11 +244,11 @@ function Signal({
   extra?: React.ReactNode
 }) {
   return (
-    <div className='signal pf-reveal'>
-      <span className='pf-eyebrow'>{label}</span>
+    <div className='signal pf-reveal' data-build-anchor data-build-box>
+      <span className='pf-eyebrow' data-build-text='signal-label'>{label}</span>
       {children}
       {extra}
-      <span className='signal__meta'>{meta}</span>
+      <span className='signal__meta' data-build-text='signal-meta'>{meta}</span>
     </div>
   )
 }
@@ -465,7 +289,7 @@ function computeStreaks(weeks: CalendarDay[][]) {
 function ContributionHeatmap({ data }: { data: Calendar }) {
   const { longest, current } = computeStreaks(data.weeks)
   return (
-    <div className='heatmap' aria-label='GitHub contribution calendar'>
+    <div className='heatmap' data-build-visual='heatmap' aria-label='GitHub contribution calendar'>
       <div className='heatmap__chart'>
         <div className='heatmap__grid'>
           {data.weeks.map((week, wi) => (
@@ -495,7 +319,7 @@ function ContributionHeatmap({ data }: { data: Calendar }) {
           <span>More</span>
         </div>
       </div>
-      <div className='heatmap__stat'>
+      <div className='heatmap__stat' data-build-text='heatmap-stat'>
         <span className='heatmap__stat-number'>{data.total.toLocaleString()}</span>
         <span className='heatmap__stat-label'>total contributions</span>
         <span className='heatmap__stat-sub'>
@@ -510,12 +334,24 @@ function Signals() {
   const [a, ar] = useCounter(21, 1100)
   const [b, br] = useCounter(18, 1300)
   const [calendar, setCalendar] = useState<Calendar | null>(null)
+  const incomingCalendar = useRef<Calendar | null>(null)
+  const calendarFrozen = useRef(false)
+  const [buildScores, setBuildScores] = useState(false)
+  const armScores = useCallback(() => setBuildScores(true), [])
+  const freezeCalendar = useCallback(() => { calendarFrozen.current = true }, [])
+  const releaseCalendar = useCallback(() => {
+    calendarFrozen.current = false
+    setCalendar(incomingCalendar.current)
+  }, [])
   useEffect(() => {
     let cancelled = false
     fetch('/api/contributions')
       .then((r) => (r.ok ? r.json() : null))
       .then((data: Calendar | null) => {
-        if (!cancelled && data && 'weeks' in data) setCalendar(data)
+        if (!cancelled && data && 'weeks' in data) {
+          incomingCalendar.current = data
+          if (!calendarFrozen.current) setCalendar(data)
+        }
       })
       .catch(() => {})
     return () => {
@@ -524,34 +360,42 @@ function Signals() {
   }, [])
   return (
     <section className='signals'>
-      <header className='signals__head pf-reveal'>
-        <span className='pf-eyebrow'>Signals · proof of being alive</span>
-      </header>
+      <HomeBuildSection id='signalsHeading' kind='heading'>
+        <header className='signals__head pf-reveal' data-build-anchor data-build-text='signals-label'>
+          <span className='pf-eyebrow'>Signals · proof of being alive</span>
+        </header>
+      </HomeBuildSection>
       <div className='signals__row'>
-        <Signal label='Contribution activity' meta={calendar ? 'GitHub · last 12 months' : 'loading…'}>
-          {calendar ? (
-            <ContributionHeatmap data={calendar} />
-          ) : (
-            <code className='signal__commit'>fetching from github…</code>
-          )}
-        </Signal>
-        <Signal
-          label='Reading'
-          meta='J.K. Rowling · 62%'
-          extra={
-            <span className='signal__bar'>
-              <span className='signal__bar-fill' style={{ width: '62%' }} />
-            </span>
-          }>
-          <span className='signal__title'>Harry Potter and the Goblet of Fire</span>
-        </Signal>
-        <Signal label='Last match' meta='Doubles · Tuesday'>
-          <div className='signal__score'>
-            <span ref={ar}>{a}</span>
-            <span className='signal__sep'>—</span>
-            <span ref={br}>{b}</span>
-          </div>
-        </Signal>
+        <HomeBuildSection id='activity' kind='activity' onStart={freezeCalendar} onComplete={releaseCalendar}>
+          <Signal label='Contribution activity' meta={calendar ? 'GitHub · last 12 months' : 'loading…'}>
+            {calendar ? (
+              <ContributionHeatmap data={calendar} />
+            ) : (
+              <code className='signal__commit' data-build-text='activity-fallback'>fetching from github…</code>
+            )}
+          </Signal>
+        </HomeBuildSection>
+        <HomeBuildSection id='reading' kind='reading'>
+          <Signal
+            label='Reading'
+            meta='J.K. Rowling · 62%'
+            extra={
+              <span className='signal__bar' data-build-visual>
+                <span className='signal__bar-fill' style={{ width: '62%' }} />
+              </span>
+            }>
+            <span className='signal__title' data-build-text='book'>Harry Potter and the Goblet of Fire</span>
+          </Signal>
+        </HomeBuildSection>
+        <HomeBuildSection id='match' kind='match' onArm={armScores} onStart={armScores}>
+          <Signal label='Last match' meta='Doubles · Tuesday'>
+            <div className='signal__score' data-build-visual>
+              <span ref={ar} data-score-value='21'>{buildScores ? 21 : a}</span>
+              <span className='signal__sep'>—</span>
+              <span ref={br} data-score-value='18'>{buildScores ? 18 : b}</span>
+            </div>
+          </Signal>
+        </HomeBuildSection>
       </div>
     </section>
   )
@@ -559,46 +403,51 @@ function Signals() {
 
 function Contact() {
   return (
-    <section id='contact' className='contact'>
-      <span className='pf-eyebrow'>Let&apos;s talk</span>
-      <a
-        href={`mailto:${SUNDAY.email}`}
-        className='contact__mail pf-magnet'
-        data-magnet
-        data-magnet-radius='240'
-        data-magnet-strength='0.34'
-        data-hover='cursor'>
-        {SUNDAY.email}
-        <span className='contact__mail-arrow'>↗</span>
-      </a>
-      <div className='contact__socials'>
-        {SUNDAY.social.map((s) => (
-          <a
-            key={s.name}
-            href={s.href}
-            target='_blank'
-            rel='noopener noreferrer'
-            className='contact__social pf-underline'
-            data-magnet
-            data-magnet-radius='100'
-            data-magnet-strength='0.25'>
-            <span className='contact__social-name'>{s.name}</span>
-            <span className='contact__social-meta'>{s.url}</span>
-          </a>
-        ))}
-      </div>
-    </section>
+    <HomeBuildSection id='contact' kind='contact'>
+      <section id='contact' className='contact' data-build-anchor data-build-rule>
+        <span className='pf-eyebrow' data-build-text='contact-label'>Let&apos;s talk</span>
+        <a
+          href={`mailto:${SUNDAY.email}`}
+          className='contact__mail pf-magnet'
+          data-magnet
+          data-magnet-radius='240'
+          data-magnet-strength='0.34'
+          data-hover='cursor'>
+          <span data-build-text='email'>{SUNDAY.email}</span>
+          <span className='contact__mail-arrow' data-build-text='mail-arrow'>↗</span>
+        </a>
+        <div className='contact__socials'>
+          {SUNDAY.social.map((s) => (
+            <a
+              key={s.name}
+              href={s.href}
+              target='_blank'
+              rel='noopener noreferrer'
+              className='contact__social pf-underline'
+              data-build-text='social'
+              data-magnet
+              data-magnet-radius='100'
+              data-magnet-strength='0.25'>
+              <span className='contact__social-name'>{s.name}</span>
+              <span className='contact__social-meta'>{s.url}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    </HomeBuildSection>
   )
 }
 
 function Footer() {
   return (
-    <footer className='footer'>
-      <div className='footer__row'>
-        <span className='pf-eyebrow'>© Sunday — 2026</span>
-        <span className='pf-eyebrow'>Built with caffeine in {SUNDAY.city}</span>
-      </div>
-    </footer>
+    <HomeBuildSection id='footer' kind='footer'>
+      <footer className='footer' data-build-anchor data-build-rule>
+        <div className='footer__row'>
+          <span className='pf-eyebrow' data-build-text='copyright'>© Sunday — 2026</span>
+          <span className='pf-eyebrow' data-build-text='colophon'>Built with caffeine in {SUNDAY.city}</span>
+        </div>
+      </footer>
+    </HomeBuildSection>
   )
 }
 
@@ -606,11 +455,10 @@ export default function Home() {
   useGlobalReveal()
   useCursorAndMagnets()
   return (
-    <>
-      <Nav />
+    <HomeBuildExperience>
       <main className='shell'>
-        <Hero />
-        <Ticker />
+        <HomeBuildHero />
+        <HomeBuildTicker />
         <Work />
         <Sticky />
         <Stack />
@@ -618,6 +466,6 @@ export default function Home() {
         <Contact />
         <Footer />
       </main>
-    </>
+    </HomeBuildExperience>
   )
 }

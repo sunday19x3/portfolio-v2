@@ -63,6 +63,13 @@ export function useCursorAndMagnets() {
       ring.style.transform = `translate3d(${rx}px, ${ry}px, 0) translate(-50%, -50%)`;
 
       magnets.forEach((m) => {
+        // Home's builder owns spacing until its timeline finishes. Other pages
+        // never set this flag and retain their normal magnetic interactions.
+        if (m.el.closest('[data-build-hover-lock]')) {
+          m.tx = 0;
+          m.ty = 0;
+          return;
+        }
         const r = m.el.getBoundingClientRect();
         const cx = r.left + r.width / 2;
         const cy = r.top + r.height / 2;
