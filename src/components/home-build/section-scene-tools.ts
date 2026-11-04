@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { createTaskCursors } from './task-cursors'
 import { sectionTextStyles } from './text-style-pass'
 import { styleClick } from './style-click'
 import { buildSocialClones } from './social-clone-scene'
@@ -15,11 +16,13 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
     if (!element) throw new Error(`Missing build target: ${selector}`)
     return element
   }
+  const tasks = createTaskCursors(get('[data-scene-overlay]'))
   const context = gsap.context(() => undefined)
   const layoutPass = createLayoutPass(root)
   context.add(layoutPass.prepare)
   const boxes = new Map(all('[data-build-text], [data-build-box], [data-build-media], [data-build-rule], [data-build-emphasis], .pf-tags, .signal__bar, .heatmap, .heatmap__grid, .heatmap__stat').map(element => [element, element.getBoundingClientRect()]))
   const cursors = new Map(all('[data-build-cursor]').map(cursor => [cursor.dataset.buildCursor as SceneRole, cursor]))
+  const templates = new Map(cursors)
   const frames = new Map(Array.from(cursors.keys(), role => {
     const frame = get(`[data-build-frame="${role}"]`)
     return [role, { frame, top: frame.querySelector('[data-edge="top"]')!, bottom: frame.querySelector('[data-edge="bottom"]')!, left: frame.querySelector('[data-edge="left"]')!, right: frame.querySelector('[data-edge="right"]')!, handle: frame.querySelector('[data-frame-end]')! }]
@@ -32,22 +35,37 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
   let tl: gsap.core.Timeline
   const bounds = (element: HTMLElement) => boxes.get(element) ?? element.getBoundingClientRect()
   const cursorFor = (role: SceneRole) => cursors.get(role)!
+  const allocate = (role: SceneRole, task: string, element: HTMLElement) => {
+    const cursor = tasks.create(task, element)
+    cursors.set(role, cursor)
+    return cursor
+  }
+  const freshFrame = (role: SceneRole) => {
+    const frame = get(`[data-build-frame="${role}"]`).cloneNode(true) as HTMLElement
+    frame.removeAttribute('data-build-frame')
+    get('[data-scene-overlay]').append(frame)
+    temporaryNodes.add(frame)
+    const parts = { frame, top: frame.querySelector('[data-edge="top"]')!, bottom: frame.querySelector('[data-edge="bottom"]')!, left: frame.querySelector('[data-edge="left"]')!, right: frame.querySelector('[data-edge="right"]')!, handle: frame.querySelector('[data-frame-end]')! }
+    frames.set(role, parts)
+    return parts
+  }
   const own = (element: HTMLElement, role: SceneRole, task: string, phase: string, at: number) => {
     const cursor = cursorFor(role)
     owned.add(element)
     owned.add(cursor)
     tl.set(element, { attr: { 'data-build-owner': role, 'data-build-phase': phase } }, at)
-    tl.set(cursor, { opacity: 1, attr: { 'data-build-task': task, 'data-build-phase': phase } }, at)
+    tasks.start(tl, cursor, at, bounds(element).left, bounds(element).top)
+    tl.set(cursor, { attr: { 'data-build-task': task, 'data-build-phase': phase } }, at)
   }
   const release = (element: HTMLElement, role: SceneRole, at: number) => {
     tl.set(element, { attr: { 'data-build-phase': 'complete' } }, at)
-    tl.set(cursorFor(role), { attr: { 'data-build-phase': 'idle', 'data-build-task': '' } }, at)
+    tl.set(cursorFor(role), { opacity: 0, attr: { 'data-build-phase': 'idle', 'data-build-task': '' } }, at)
     lastJob.set(role, Math.max(lastJob.get(role) ?? 0, at))
   }
   const draw = (element: HTMLElement, role: SceneRole, at: number, task: string, padding = 4) => {
     const b = bounds(element)
-    const cursor = cursorFor(role)
-    const p = frames.get(role)!
+    const cursor = allocate(role, `draw ${task}`, element)
+    const p = freshFrame(role)
     // Measure the whole region even on first-pixel entry. The overlay clips its
     // paint at the viewport; scrolling reveals the same uninterrupted work.
     const x = Math.max(5, b.left - padding)
@@ -71,6 +89,7 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
     tl.to(cursor, { x: x + width, y: y + height, duration: 0.26 }, start)
     tl.set(cursor, { attr: { 'data-dock': 'left' } }, start + 0.2)
     tl.to(cursor, { scale: 1, duration: 0.06 }, start + 0.26)
+    tasks.end(tl, cursor, start + 0.26)
     return start + 0.26
   }
   const park = (element: HTMLElement, role: SceneRole, at: number, below = false) => {
@@ -85,7 +104,8 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
     return at + 0.16
   }
   const write = (element: HTMLElement, role: SceneRole, start: number, duration: number, closeFrame = true, inheritFrom?: HTMLElement) => {
-    const caret = get(`[data-scene-caret="${role}"]`)
+    allocate(role, `write ${element.dataset.buildText ?? 'text'}`, element)
+    const caret = typography.caret()
     own(element, role, element.dataset.buildText ?? 'text', 'typing', start)
     const done = typography.type(tl, element, cursorFor(role), caret, start, duration, {
       inheritFrom,
@@ -107,11 +127,25 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
     tl.to(cursor, { scale: 1, duration: 0.05 }, drawn + 0.17)
     return write(element, role, park(element, role, drawn + 0.22), duration)
   }
-  const cloneSocials = (source: HTMLElement, targets: HTMLElement[], roles: SceneRole[], at: number) => buildSocialClones({
-    timeline: tl, overlay: get('[data-scene-overlay]'), source, targets, at,
-    actors: roles.map(role => ({ role, cursor: cursorFor(role), frame: frames.get(role)!.frame, selection: get(`[data-scene-selection="${role}"]`) })),
-    register: node => temporaryNodes.add(node), own, release, write,
-  })
+  const cloneSocials = (source: HTMLElement, targets: HTMLElement[], roles: SceneRole[], at: number) => {
+    const actors = roles.map((role, index) => ({ role, cursor: tasks.create(`duplicate social ${index + 2}`, targets[index]), frame: freshFrame(role).frame, selection: get(`[data-scene-selection="${role}"]`) }))
+    const actorFor = (role: SceneRole) => actors.find(actor => actor.role === role)!.cursor
+    return buildSocialClones({
+      timeline: tl, overlay: get('[data-scene-overlay]'), source, targets, at, actors,
+      register: node => temporaryNodes.add(node),
+      own: (element, role, task, phase, when) => {
+        const box = bounds(element)
+        const cursor = actorFor(role)
+        tasks.start(tl, cursor, when, box.left, box.top)
+        tl.set(cursor, { attr: { 'data-build-task': task, 'data-build-phase': phase } }, when)
+      },
+      release: (_element, role, when) => tasks.end(tl, actorFor(role), when),
+      write: (element, role, when, duration, closeFrame, inheritFrom) => {
+        tasks.end(tl, actorFor(role), when)
+        return write(element, role, when, duration, closeFrame, inheritFrom)
+      },
+    })
+  }
   const panel = (selector: string, role: SceneRole, at: number) => {
     const element = get(selector)
     const done = draw(element, role, at, 'region', 0)
@@ -125,7 +159,7 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
     const b = bounds(element)
     const y = b.top
     const line = get(`[data-scene-rule="${role}"]`)
-    const cursor = cursorFor(role)
+    const cursor = allocate(role, 'draw divider', element)
     own(element, role, 'divider', 'drawing', at)
     tl.set(cursor, { attr: { 'data-dock': 'above' } }, at)
     tl.to(cursor, { x: b.left + 2, y, duration: 0.16 }, at)
@@ -140,8 +174,11 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
   }
   const emphasize = (element: HTMLElement, role: SceneRole, at: number) => {
     const b = bounds(element)
-    const selection = get(`[data-scene-selection="${role}"]`)
-    const cursor = cursorFor(role)
+    const selection = get(`[data-scene-selection="${role}"]`).cloneNode(true) as HTMLElement
+    selection.removeAttribute('data-scene-selection')
+    get('[data-scene-overlay]').append(selection)
+    temporaryNodes.add(selection)
+    const cursor = allocate(role, `style ${element.textContent?.trim().slice(0, 28)}`, element)
     own(element, role, 'emphasis', 'styling', at)
     tl.set(cursor, { attr: { 'data-dock': 'above' } }, at)
     tl.to(cursor, { x: b.left, y: b.top - 8, duration: 0.22 }, at)
@@ -160,43 +197,62 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
   const generate = (role: SceneRole, at: number) => {
     const media = get('[data-build-media]')
     const img = media.querySelector('img')!
-    const b = bounds(media)
+    const box = bounds(media)
     const drawn = draw(media, role, at, 'image-region', 0)
     const tiles = get('[data-generation-tiles]')
     const status = get('[data-generation-status]')
     tl.set(media, { opacity: 1, background: 'var(--bg-alt)' }, drawn)
-    tl.set(img, { opacity: 0, filter: 'blur(12px)' }, 0)
-    tl.to(cursorFor(role), { x: b.left + b.width / 2, y: b.top + b.height / 2, duration: 0.16 }, drawn)
-    tl.to(cursorFor(role), { scale: 0.86, duration: 0.08, repeat: 1, yoyo: true }, drawn + 0.16)
-    const start = park(media, role, drawn + 0.32, true)
-    own(media, role, 'generate-image', 'generating', start)
-    tl.set(tiles, { x: b.left, y: b.top, width: b.width, height: b.height, opacity: 1 }, start)
-    tl.set(status, { x: b.left + 14, y: b.top + 14, opacity: 1 }, start)
-    tl.set(Array.from(tiles.children), { opacity: 1 }, start)
-    tl.to(img, { opacity: 1, duration: 0.25 }, start + 0.12)
-    tl.to(Array.from(tiles.children), { opacity: 0, duration: 0.28, stagger: { amount: 0.95, from: 'random' } }, start + 0.22)
-    tl.to(img, { filter: 'blur(0px)', duration: 1.2 }, start + 0.28)
-    tl.fromTo(status.querySelector('[data-generation-progress]'), { textContent: 0 }, { textContent: 100, snap: { textContent: 1 }, duration: 1.48, ease: 'none' }, start)
-    tl.to([tiles, status, frames.get(role)!.frame], { opacity: 0, duration: 0.16 }, start + 1.5)
-    release(media, role, start + 1.66)
-    return start + 1.68
+    gsap.set(img, { opacity: 0 })
+    tl.set(tiles, { x: box.left, y: box.top, width: box.width, height: box.height, opacity: 1 }, drawn)
+    tl.set(status, { x: box.left + 14, y: box.top + 14, opacity: 1 }, drawn)
+    tl.set(img, { opacity: 1 }, drawn)
+    const cursor = tasks.create('generate project image', media)
+    const x = box.left + box.width / 2
+    const y = box.top + box.height / 2
+    const start = drawn + 0.12
+    tasks.start(tl, cursor, start, x - 24, y - 20)
+    tl.to(cursor, { x, y, duration: 0.2 }, start)
+    const applied = styleClick(tl, cursor, start + 0.2)
+    // One image command starts the entire reveal; the pointer leaves after
+    // submitting it instead of supervising individual tiles.
+    tasks.end(tl, cursor, applied + 0.2)
+    const cells = Array.from(tiles.children)
+    tl.to(cells, { opacity: 0, duration: 0.3, stagger: { amount: 0.75, from: 'random' } }, applied)
+    tl.fromTo(status.querySelector('[data-generation-progress]'), { textContent: 0 }, {
+      textContent: 100, snap: { textContent: 1 }, duration: 1.05, ease: 'none',
+    }, applied)
+    const done = applied + 1.15
+    tl.to([tiles, status, frames.get(role)!.frame], { opacity: 0, duration: 0.16 }, done)
+    return done + 0.18
   }
   const populate = (element: HTMLElement, children: HTMLElement[], role: SceneRole, at: number, duration = 0.7) => {
     const drawn = draw(element, role, at, 'data-region')
     const start = park(element, role, drawn)
-    own(element, role, 'populate-data', 'building', start)
     tl.set(element, { opacity: 1 }, start)
-    tl.fromTo(children, { opacity: 0 }, { opacity: 1, duration: 0.15, stagger: { amount: duration }, immediateRender: false }, start)
+    children.forEach((child, index) => {
+      const cursor = tasks.create(`populate data column ${index + 1}`, child)
+      const box = child.getBoundingClientRect()
+      const begin = start + index * duration / Math.max(1, children.length)
+      gsap.set(child, { opacity: 0 })
+      tasks.start(tl, cursor, begin, box.left + box.width / 2, box.top)
+      tl.to(child, { opacity: 1, duration: 0.2 }, begin)
+      tl.to(cursor, { y: box.bottom, duration: 0.2, ease: 'none' }, begin)
+      tasks.end(tl, cursor, begin + 0.2)
+    })
     tl.to(frames.get(role)!.frame, { opacity: 0, duration: 0.1 }, start + duration + 0.15)
     release(element, role, start + duration + 0.25)
     return start + duration + 0.27
   }
   const growBar = (element: HTMLElement, role: SceneRole, at: number) => {
     const done = draw(element, role, at, 'reading-progress')
-    const start = park(element, role, done, true)
+    const start = done + 0.08
+    const cursor = allocate(role, 'set reading progress', element)
     own(element, role, 'reading-progress', 'building', start)
     tl.set(element, { opacity: 1 }, start)
     tl.fromTo(element.firstElementChild, { scaleX: 0, transformOrigin: 'left center' }, { scaleX: 1, duration: 0.55, immediateRender: false }, start)
+    const fill = element.firstElementChild!.getBoundingClientRect()
+    tl.set(cursor, { x: fill.left, y: fill.top }, start)
+    tl.to(cursor, { x: fill.right, duration: 0.55 }, start)
     tl.to(frames.get(role)!.frame, { opacity: 0, duration: 0.1 }, start + 0.55)
     release(element, role, start + 0.65)
     return start + 0.67
@@ -207,16 +263,25 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
     own(element, role, 'score-text', 'typing', typed)
     gsap.set(all('[data-score-value]'), { textContent: 0 })
     const start = typography.type(tl, element, cursorFor(role), get(`[data-scene-caret="${role}"]`), typed, 0.3, { text: '0 — 0' })
-    own(element, role, 'score', 'counting', start)
     tl.set(element, { opacity: 1 }, start)
-    all('[data-score-value]').forEach(value => tl.fromTo(value, { textContent: 0 }, { textContent: Number(value.dataset.scoreValue), snap: { textContent: 1 }, duration: 0.8, ease: 'power2.out' }, start))
+    all('[data-score-value]').forEach((value, index) => {
+      const cursor = tasks.create(`set score ${index + 1}`, value)
+      const box = bounds(value)
+      tasks.start(tl, cursor, start, box.left + box.width / 2, box.bottom + 4)
+      tl.fromTo(value, { textContent: 0 }, { textContent: Number(value.dataset.scoreValue), snap: { textContent: 1 }, duration: 0.8, ease: 'power2.out' }, start)
+      tasks.end(tl, cursor, start + 0.8)
+    })
     tl.to(frames.get(role)!.frame, { opacity: 0, duration: 0.1 }, start + 0.85)
     release(element, role, start + 0.95)
     return start + 0.97
   }
-  const align = (role: SceneRole) => layoutPass.play({ timeline: tl, cursor: cursorFor(role), role, at: tl.duration() + 0.05, own, release })
+  const align = (role: SceneRole) => {
+    allocate(role, 'adjust spacing', get('[data-build-anchor]'))
+    return layoutPass.play({ timeline: tl, cursor: cursorFor(role), role, at: tl.duration() + 0.05, own, release })
+  }
   const finish = () => {
     context.revert()
+    tasks.cleanup()
     layoutPass.cleanup()
     typography.cleanup()
     textStyles.cleanup()
@@ -236,7 +301,7 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
         gsap.set(all('[data-build-rule]'), { borderTopColor: 'transparent' })
         textStyles.prepare()
         const anchor = get('[data-build-anchor]').getBoundingClientRect()
-        cursors.forEach(cursor => gsap.set(cursor, { x: anchor.left + 24, y: anchor.top + 24, opacity: 0 }))
+        templates.forEach(cursor => gsap.set(cursor, { x: anchor.left + 24, y: anchor.top + 24, opacity: 0 }))
         storyboard()
         lastJob.forEach((end, role) => tl.to(cursorFor(role), { opacity: 0, duration: 0.18 }, end + 0.08))
         // Every scene has a finite timeline even when all its targets are clipped.
@@ -245,5 +310,6 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
     } catch (error) { finish(); throw error }
     return { finish, durationMs: tl.duration() / tl.timeScale() * 1000 }
   }
-  return { get, all, type, panel, rule, emphasize, generate, populate, growBar, score, cloneSocials, align, run }
+  const show = (element: HTMLElement, at: number) => tl.set(element, { opacity: 1 }, at)
+  return { get, all, show, type, panel, rule, emphasize, generate, populate, growBar, score, cloneSocials, align, run }
 }

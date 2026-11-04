@@ -21,12 +21,22 @@ function factory(kind: SectionKind): SceneFactory {
         case 'project': {
           const imageDone = s.generate(DESIGN, 0.02)
           s.type('[data-build-text="caption"]', DESIGN, imageDone, 0.28)
-          const metaDone = s.type('[data-build-text="project-meta"]', COPY, 0.06, 0.32)
-          const metaStyled = s.emphasize(s.get('.project__no'), COPY, metaDone)
-          s.type('[data-build-text="project-title"]', COPY, metaStyled, 0.42)
+          // Metadata, title, description, each tag and URL are independent jobs.
+          const meta = s.get('[data-build-text="project-meta"]')
+          const links = s.get('[data-build-text="project-links"]')
+          s.show(meta, 0)
+          s.show(links, 0)
+          s.all('.project__no, .project__year').forEach((element, index) => {
+            const done = s.type(element, COPY, 0.06 + index * 0.04, 0.32)
+            if (element.matches('.project__no')) s.emphasize(element, DETAIL, done)
+          })
+          s.type('[data-build-text="project-title"]', COPY, 0.12, 0.6)
           s.type('[data-build-text="project-description"]', BUILD, 0.12, 1.35)
-          const linksDone = s.type('[data-build-text="project-links"]', DETAIL, 0.2, 0.75)
-          s.emphasize(s.get('.pf-tags'), DETAIL, linksDone)
+          s.all('.pf-tag').forEach((tag, index) => {
+            const done = s.type(tag, DETAIL, 0.2 + index * 0.05, 0.4)
+            s.emphasize(tag, DETAIL, done)
+          })
+          s.type(s.get('.project__link'), BUILD, 0.24, 0.6)
           break
         }
         case 'sticky': {
@@ -41,10 +51,8 @@ function factory(kind: SectionKind): SceneFactory {
           const keywords = s.all('.stack__kw-text')
           // Every keyword gets an actual style pass, after all text is typed.
           // Three collaborators work through separate groups in parallel.
-          const lanes: [SceneRole, number[]][] = [[COPY, [0, 1, 2]], [DESIGN, [3, 4]], [BUILD, [5, 6]]]
-          lanes.forEach(([role, indexes], lane) => {
-            let next = copyDone + 0.06 + lane * 0.08
-            indexes.forEach(index => { next = s.emphasize(keywords[index], role, next) })
+          keywords.forEach((keyword, index) => {
+            s.emphasize(keyword, ([COPY, DESIGN, BUILD] as const)[index % 3], copyDone + 0.06 + index * 0.04)
           })
           break
         }

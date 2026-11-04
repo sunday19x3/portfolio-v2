@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { createTaskCursors } from './task-cursors'
 import { createTextStylePass } from './text-style-pass'
 import { styleClick } from './style-click'
 import { createTypographyPass } from './typography-pass'
@@ -33,6 +34,7 @@ export function createTickerScene(root: HTMLElement, onComplete: () => void) {
   const layout = createLayoutPass(root)
   context.add(layout.prepare)
   const typography = createTypographyPass(get('[data-build-cursor="TickerDesign"]').parentElement!)
+  const workers = createTaskCursors(get('[data-scene-overlay]'))
   let durationMs = 0
   const section = get('#now')
   const label = get('.ticker__label')
@@ -66,6 +68,7 @@ export function createTickerScene(root: HTMLElement, onComplete: () => void) {
   }]))
   const owned = [blue, copy, labelText.element, body.element, signal, pips, ...accents.map(({ element }) => element)]
   const clearOwners = () => {
+    workers.cleanup()
     typography.cleanup()
     layout.cleanup()
     textStyles.cleanup()
@@ -95,7 +98,7 @@ export function createTickerScene(root: HTMLElement, onComplete: () => void) {
       }
       const release = (element: HTMLElement, cursor: HTMLElement, at: number) => {
         timeline.set(element, { attr: { 'data-build-phase': 'complete' } }, at)
-        timeline.set(cursor, { attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
+        timeline.set(cursor, { opacity: 0, attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
       }
       const draw = (bounds: Box, cursor: HTMLElement, frame: HTMLElement, start: number, travel: number, duration: number) => {
         const parts = frames.get(frame)!
@@ -133,16 +136,34 @@ export function createTickerScene(root: HTMLElement, onComplete: () => void) {
       timeline.to(blue, { scale: 1, x: labelBox.right + 8, y: box.bottom + 5, duration: 0.12 }, labelDrawn + 0.18)
       const labelDone = type(labelText, blue, labelCaret, 'now-label', labelDrawn + 0.3, 0.2)
       timeline.to(blue, { x: signalBox.left + signalBox.width / 2, y: signalBox.bottom + 7, duration: 0.16 }, labelDone)
-      own(signal, blue, 'signal', 'building', labelDone + 0.16)
+
       timeline.set(signal, { opacity: 1 }, labelDone + 0.16)
-      timeline.fromTo(bars, { scaleY: 0 }, { scaleY: 1, duration: 0.16, stagger: 0.035, immediateRender: false }, labelDone + 0.16)
+      bars.forEach((bar, index) => {
+        const element = bar as HTMLElement
+        const rect = element.getBoundingClientRect()
+        const cursor = workers.create(`build signal bar ${index + 1}`, element)
+        const at = labelDone + 0.16 + index * 0.035
+        workers.start(timeline, cursor, at, rect.left + rect.width / 2, rect.bottom)
+        timeline.fromTo(bar, { scaleY: 0, transformOrigin: 'bottom' }, { scaleY: 1, duration: 0.25, immediateRender: false }, at)
+        timeline.to(cursor, { y: rect.top, duration: 0.25 }, at)
+        workers.end(timeline, cursor, at + 0.25)
+      })
       release(signal, blue, labelDone + 0.43)
       timeline.to(labelFrame, { opacity: 0, duration: 0.12 }, labelDone + 0.43)
       const indicators = labelDone + 0.46
       timeline.to(blue, { x: pipsBox.left, y: pipsBox.top, duration: 0.42 }, indicators)
-      own(pips, blue, 'indicators', 'building', indicators + 0.42)
+
       timeline.set(pips, { opacity: 1 }, indicators + 0.42)
-      timeline.fromTo(Array.from(pips.children), { opacity: 0 }, { opacity: 1, duration: 0.12, stagger: 0.035, immediateRender: false }, indicators + 0.42)
+      Array.from(pips.children).forEach((pip, index) => {
+        const element = pip as HTMLElement
+        const rect = element.getBoundingClientRect()
+        const cursor = workers.create(`place ticker indicator ${index + 1}`, element)
+        const at = indicators + 0.42 + index * 0.05
+        workers.start(timeline, cursor, at, rect.left, rect.top - 12)
+        timeline.to(cursor, { y: rect.top, duration: 0.16 }, at)
+        timeline.fromTo(element, { opacity: 0 }, { opacity: 1, duration: 0.12, immediateRender: false }, at + 0.16)
+        workers.end(timeline, cursor, at + 0.28)
+      })
       release(pips, blue, indicators + 0.42 + 0.12 + pips.children.length * 0.035)
       timeline.to(blue, { x: pipsBox.left - 14, y: box.bottom + 24, opacity: 0, duration: 0.2 }, indicators + 0.64 + pips.children.length * 0.035)
 

@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { createTaskCursors } from './task-cursors'
 import type { SceneRole } from './section-scene-tools'
 import { styleClick } from './style-click'
 
@@ -26,6 +27,7 @@ function textBox(element: HTMLElement) {
 // Copies are inert paint in the overlay. The real anchors keep their original
 // labels, hrefs and layout throughout the demonstration.
 export function buildSocialClones({ timeline: tl, overlay, source, targets, actors, at, register, own, release, write }: CloneOptions) {
+  const editors = createTaskCursors(overlay, register)
   const sourceBox = source.getBoundingClientRect()
   const destinations = targets.map(target => target.getBoundingClientRect())
 
@@ -98,15 +100,20 @@ export function buildSocialClones({ timeline: tl, overlay, source, targets, acto
   const editAt = Math.max(...copies.map(copy => copy.landed)) + 0.3
   let finished = editAt
   for (const [index, clone] of copies.entries()) {
-    const { actor: { cursor, frame, selection, role }, fields, lines, lineBoxes, target, copy, box, left, top } = clone
+    const { actor: { frame, selection: templateSelection, role }, fields, lines, lineBoxes, target, copy, box, left, top } = clone
     let next = editAt + index * 0.08
     fields.forEach((field, lineIndex) => {
       const previous = lines[lineIndex]
       const old = lineBoxes[lineIndex]
       const x = left + old.left
       const y = top + old.top
-      const start = next
-      own(field, role, lineIndex === 0 ? 'replace-social-name' : 'replace-social-url', 'selecting', start)
+      const start = editAt + index * 0.08 + lineIndex * 0.04
+      const cursor = editors.create(lineIndex === 0 ? 'replace social name' : 'replace social URL', field)
+      const selection = templateSelection.cloneNode(true) as HTMLElement
+      selection.removeAttribute('data-scene-selection')
+      overlay.append(selection)
+      register(selection)
+      editors.start(tl, cursor, start, x, y)
       tl.set(copy, { attr: { 'data-clone-state': 'editing' } }, start)
       tl.to(cursor, { x, y: y + old.height / 2, duration: 0.12 }, start)
       tl.set(selection, { x, y, width: old.width, height: old.height, scaleX: 0, opacity: 1 }, start + 0.12)
@@ -125,7 +132,9 @@ export function buildSocialClones({ timeline: tl, overlay, source, targets, acto
       }
       const parkX = Math.min(innerWidth - 90, box.right + 8)
       tl.to(cursor, { x: parkX, y: box.top - 16, duration: 0.12 }, cleared)
-      next = write(field, role, cleared + 0.12, lineIndex === 0 ? 0.28 : 0.48, false, source.querySelector<HTMLElement>(lineIndex === 0 ? '.contact__social-name' : '.contact__social-meta')!) + 0.06
+      editors.end(tl, cursor, cleared + 0.12)
+      const done = write(field, role, cleared + 0.12, lineIndex === 0 ? 0.28 : 0.48, false, source.querySelector<HTMLElement>(lineIndex === 0 ? '.contact__social-name' : '.contact__social-meta')!) + 0.06
+      next = Math.max(next, done)
     })
     tl.set(copy, { opacity: 0, attr: { 'data-clone-state': 'complete' } }, next)
     tl.to(frame, { opacity: 0, duration: 0.12 }, next)

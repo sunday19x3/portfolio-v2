@@ -12,10 +12,22 @@ const CURSOR_STYLES = {
 }
 
 export function assignCursorNames(cursors: Iterable<HTMLElement>, reserved: string[] = []) {
-  const available = CURSOR_NAMES.filter(name => !reserved.includes(name))
+  const used = new Set(reserved)
+  const available = CURSOR_NAMES.filter(name => !used.has(name))
   for (const cursor of cursors) {
     const index = Math.floor(Math.random() * available.length)
-    cursor.querySelector<HTMLElement>('[data-cursor-name]')!.textContent = available.splice(index, 1)[0] ?? `Alex ${Math.floor(Math.random() * 1000)}`
+    let name = available.splice(index, 1)[0]
+    if (!name) {
+      let suffix = 2
+      let candidates = CURSOR_NAMES.map(base => `${base} ${suffix}`).filter(candidate => !used.has(candidate))
+      while (!candidates.length) {
+        suffix += 1
+        candidates = CURSOR_NAMES.map(base => `${base} ${suffix}`).filter(candidate => !used.has(candidate))
+      }
+      name = candidates[Math.floor(Math.random() * candidates.length)]
+    }
+    used.add(name)
+    cursor.querySelector<HTMLElement>('[data-cursor-name]')!.textContent = name
   }
 }
 

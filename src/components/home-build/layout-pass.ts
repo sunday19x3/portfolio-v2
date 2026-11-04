@@ -9,6 +9,8 @@ type LayoutSpec = {
   moving: HTMLElement[]
   offset: Point
   origin: Point
+  originOffset?: Point
+  badgeY?: number
   tip: Point
   from: number
   to: number
@@ -26,6 +28,22 @@ type LayoutPlayback<Role extends string> = {
 
 function layoutSpec(root: HTMLElement, id = root.dataset.scrollBuild): LayoutSpec | undefined {
   const get = (selector: string) => root.querySelector<HTMLElement>(selector)!
+  if (id === 'navigation-contact') {
+    const work = get('.nav__items > a:first-child').getBoundingClientRect()
+    const stack = get('.nav__items > a:nth-child(2)').getBoundingClientRect()
+    const target = get('.nav__items > a:nth-child(3)')
+    const contact = target.getBoundingClientRect()
+    const gap = contact.left - stack.right
+    if (gap < 24) return
+    const stackOffset = stack.left - work.right >= 24 ? 16 - (stack.left - work.right) : 0
+    return {
+      kind: 'gap', target, moving: [target], offset: { x: stackOffset + 16 - gap, y: 0 },
+      origin: { x: stack.right, y: contact.top }, originOffset: { x: stackOffset, y: 0 },
+      badgeY: root.getBoundingClientRect().bottom + 38,
+      tip: { x: contact.left, y: contact.top }, from: 16, to: gap, vertical: false,
+      box: { x: contact.left, y: contact.top, width: contact.width, height: contact.height },
+    }
+  }
   if (id === 'mimboku' || id === 'pyxis' || id === 'navigation' || id === 'work') {
     const target = get(id === 'navigation' ? '.nav__items > a:nth-child(2)' : id === 'work' ? '.work__title' : '.project__body')
     const body = target.getBoundingClientRect()
@@ -33,9 +51,10 @@ function layoutSpec(root: HTMLElement, id = root.dataset.scrollBuild): LayoutSpe
     const gap = body.left - media.right
     if (gap < 24) return
     return {
-      kind: 'gap', target, moving: id === 'navigation' ? [target, get('.nav__items > a:nth-child(3)')] : [target], offset: { x: 16 - gap, y: 0 },
+      kind: 'gap', target, moving: [target], offset: { x: 16 - gap, y: 0 },
       origin: { x: media.right, y: body.top }, tip: { x: body.left, y: body.top },
       from: 16, to: gap, vertical: false,
+      badgeY: id === 'navigation' ? root.getBoundingClientRect().bottom + 10 : undefined,
       box: { x: body.left, y: body.top, width: body.width, height: body.height },
     }
   }
@@ -105,10 +124,11 @@ export function createLayoutPass(root: HTMLElement, id = root.dataset.scrollBuil
   }
   const play = <Role extends string>({ timeline: tl, cursor, role, own, release, at }: LayoutPlayback<Role>) => {
     if (!spec) return at
-    const { kind, target, moving, offset, origin, tip, from, to, vertical, box } = spec
+    const { kind, target, moving, offset, origin, originOffset = { x: 0, y: 0 }, tip, from, to, vertical, box } = spec
     visual = document.createElement('div')
     visual.className = styles.layoutPass
     visual.dataset.layoutPass = kind
+    visual.dataset.layoutTarget = target.textContent?.trim() ?? ''
     visual.setAttribute('aria-hidden', 'true')
     ;(root.querySelector('[data-scene-overlay]') ?? cursor.parentElement!).append(visual)
 
@@ -137,25 +157,25 @@ export function createLayoutPass(root: HTMLElement, id = root.dataset.scrollBuil
     unit.textContent = ' px'
     const startTip = { x: tip.x + offset.x, y: tip.y + offset.y }
     const delta = { x: tip.x - startTip.x, y: tip.y - startTip.y }
-    const measureOrigin = vertical ? { x: origin.x - 10, y: origin.y } : { x: origin.x, y: tip.y }
+    const measureOrigin = vertical ? { x: origin.x - 10, y: origin.y } : { x: origin.x + originOffset.x, y: tip.y }
     const badgeOrigin = kind === 'padding'
       ? { x: box.x + box.width - 8, y: origin.y + 7 }
       : vertical
         ? { x: origin.x + 14, y: origin.y + from / 2 - 10 }
-        : { x: origin.x + from / 2, y: box.y - 32 }
+        : { x: origin.x + originOffset.x + from / 2, y: spec.badgeY ?? box.y - 32 }
 
     gsap.set(visual, { opacity: 0 })
     gsap.set(frame, { x: box.x + offset.x, y: box.y + offset.y, width: box.width, height: box.height })
     gsap.set(guideX, { x: startTip.x })
     gsap.set(guideY, { y: startTip.y })
-    gsap.set(fixedGuide, vertical ? { y: origin.y, opacity: 0.5 } : { x: origin.x, opacity: 0.5 })
+    gsap.set(fixedGuide, vertical ? { y: origin.y, opacity: 0.5 } : { x: origin.x + originOffset.x, opacity: 0.5 })
     gsap.set(markerX, { x: startTip.x })
     gsap.set(markerY, { y: startTip.y })
     gsap.set(badge, { ...badgeOrigin, xPercent: kind === 'padding' ? -100 : vertical ? 0 : -50 })
     gsap.set(measure, { ...measureOrigin, width: vertical ? 1 : to, height: vertical ? to : 1, scaleX: vertical ? 1 : from / to, scaleY: vertical ? from / to : 1 })
     gsap.set(band, vertical
       ? { x: origin.x, y: origin.y, width: box.width, height: to, scaleY: from / to }
-      : { x: origin.x, y: kind === 'padding' ? origin.y : box.y, width: to, height: kind === 'padding' ? box.height + (tip.y - origin.y) : box.height, scaleX: from / to })
+      : { x: origin.x + originOffset.x, y: kind === 'padding' ? origin.y : box.y, width: to, height: kind === 'padding' ? box.height + (tip.y - origin.y) : box.height, scaleX: from / to })
     const topPadding = kind === 'padding' ? make(styles.layoutBand, visual) : undefined
     if (topPadding) gsap.set(topPadding, { x: startTip.x, y: origin.y, width: box.width, height: tip.y - origin.y, scaleY: (startTip.y - origin.y) / (tip.y - origin.y) })
 
@@ -180,8 +200,12 @@ export function createLayoutPass(root: HTMLElement, id = root.dataset.scrollBuil
     tl.to([guideX, markerX], { x: tip.x, duration }, drag)
     tl.to([guideY, markerY], { y: tip.y, duration }, drag)
     tl.to([measure, band], { scaleX: 1, scaleY: 1, duration }, drag)
+    if (originOffset.x) {
+      tl.to(fixedGuide, { x: origin.x, duration }, drag)
+      tl.to([measure, band], { x: origin.x, duration }, drag)
+    }
     if (topPadding) tl.to(topPadding, { x: tip.x, scaleY: 1, duration }, drag)
-    if (kind !== 'padding') tl.to(badge, { x: badgeOrigin.x + (vertical ? 0 : delta.x / 2), y: badgeOrigin.y + (vertical ? delta.y / 2 : 0), duration }, drag)
+    if (kind !== 'padding') tl.to(badge, { x: badgeOrigin.x + (vertical ? 0 : (delta.x - originOffset.x) / 2), y: badgeOrigin.y + (vertical ? delta.y / 2 : 0), duration }, drag)
     tl.to(number, { textContent: to, snap: { textContent: 1 }, duration }, drag)
     if (topNumber) tl.to(topNumber, { textContent: tip.y - origin.y, snap: { textContent: 1 }, duration }, drag)
     tl.to(cursor, { scale: 1, duration: 0.08 }, dropped)

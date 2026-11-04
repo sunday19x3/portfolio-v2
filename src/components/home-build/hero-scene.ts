@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { createTaskCursors } from './task-cursors'
 import { styleClick } from './style-click'
 import { createTypographyPass } from './typography-pass'
 import { createLayoutPass } from './layout-pass'
@@ -47,11 +48,13 @@ function measureText(element: HTMLElement) {
 }
 
 export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
-  const { hero, titleCursor, copyCursor, topCursor, bottomCursor, titleFrame, copyRegion, copyFrame, topFrame, bottomFrame, titleCaret, copyCaret, topCaret, bottomCaret } = targets
+  const { hero, titleCursor, copyCursor, topCursor, bottomCursor, titleFrame, copyRegion, copyFrame, topFrame, bottomFrame, titleCaret, topCaret, bottomCaret } = targets
   const context = gsap.context(() => undefined)
   const layout = createLayoutPass(hero, 'hero')
   context.add(layout.prepare)
   const typography = createTypographyPass(titleCursor.parentElement!)
+  const workers = createTaskCursors(titleCursor.parentElement!)
+  const extraFrames = new Set<HTMLElement>()
   let durationMs = 0
   const chars = Array.from(hero.querySelectorAll<HTMLElement>('.pf-split-char'))
   const charBoxes = chars.map(char => char.getBoundingClientRect())
@@ -72,7 +75,7 @@ export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
   const since = label('since')
   const fields = [edition, number, ...lines, scroll, since]
   const ownershipNodes = [...chars, paragraph, ...fields.map(field => field.element), titleCursor, copyCursor, topCursor, bottomCursor]
-  const clearOwnership = () => { typography.cleanup(); layout.cleanup(); ownershipNodes.forEach(element => {
+  const clearOwnership = () => { workers.cleanup(); extraFrames.forEach(frame => frame.remove()); typography.cleanup(); layout.cleanup(); ownershipNodes.forEach(element => {
     element.removeAttribute('data-build-owner')
     element.removeAttribute('data-build-phase')
     element.removeAttribute('data-build-task')
@@ -103,13 +106,13 @@ export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
       // One owner per active task. Ownership lasts through typing and cleanup,
       // so a cursor never starts another job while its content is still forming.
       const own = (cursor: HTMLElement, elements: HTMLElement[], task: string, at: number, phase = 'typing') => {
-        const owner = cursor.dataset.buildCursor!
+        const owner = cursor.dataset.taskCursor ?? cursor.dataset.buildCursor!
         timeline.set(cursor, { opacity: 1, attr: { 'data-build-task': task, 'data-build-phase': phase } }, at)
         timeline.set(elements, { attr: { 'data-build-owner': owner, 'data-build-phase': phase } }, at)
       }
       const release = (cursor: HTMLElement, elements: HTMLElement[], at: number) => {
         timeline.set(elements, { attr: { 'data-build-phase': 'complete' } }, at)
-        timeline.set(cursor, { attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
+        timeline.set(cursor, { opacity: 0, attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
       }
 
       // The four edges grow with transforms. Content and layout never resize.
@@ -140,6 +143,17 @@ export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
       }
       const type = (field: ReturnType<typeof measureText>, cursor: HTMLElement, frame: HTMLElement, caret: HTMLElement, start: number, interval: number, travel = 0.35) => {
         const { element, box, ends } = field
+        cursor = workers.create(`frame ${element.dataset.heroText}`, element)
+        workers.start(timeline, cursor, start, box.left, box.top)
+        frame = frame.cloneNode(true) as HTMLElement
+        frame.removeAttribute('data-build-frame')
+        titleCursor.parentElement!.append(frame)
+        extraFrames.add(frame)
+        frameParts.set(frame, {
+          top: frame.querySelector('[data-edge="top"]')!, right: frame.querySelector('[data-edge="right"]')!,
+          bottom: frame.querySelector('[data-edge="bottom"]')!, left: frame.querySelector('[data-edge="left"]')!,
+          end: frame.querySelector('[data-frame-end]')!,
+        })
         const framed = drawBox(padded(box), cursor, frame, start, travel, 0.18)
         const clicked = click(cursor, box.left + 1, box.top + box.height / 2, framed + 0.05, 0.2)
         // Park just beneath this label, with the name opening inward. Start
@@ -175,17 +189,16 @@ export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
       release(titleCursor, [chars[chars.length - 1]], colored + 0.48)
       timeline.to(titleCursor, { x: last.right + 22, y: last.top + 30, opacity: 0, duration: 0.24 }, colored + 0.5)
 
-      // The introduction is one text box, with one owner typing three lines.
-      // It runs alongside the title and both metadata groups from the start.
+      // Each introduction line is an independent writing job.
       const regionDrawn = drawBox(padded(paragraphBox, 10), copyCursor, copyRegion, 0.1, 0.28, 0.34)
       const copyFramed = drawBox(padded(paragraphBox), copyCursor, copyFrame, regionDrawn + 0.1, 0.15, 0.24)
       timeline.to(copyRegion, { opacity: 0, duration: 0.16 }, copyFramed)
       const copyClicked = click(copyCursor, lines[0].box.left + 1, lines[0].box.top + lines[0].box.height / 2, copyFramed + 0.07, 0.22)
       timeline.to(copyCursor, { x: paragraphBox.right + 16, y: paragraphBox.top + 12, duration: 0.26 }, copyClicked)
       own(copyCursor, [paragraph], 'intro', copyClicked + 0.26)
-      const copyDone = typography.type(timeline, paragraph, copyCursor, copyCaret, copyClicked + 0.26, 1.7, {
-        onStyled: at => timeline.set(lines.map(line => line.element), { opacity: 1, clipPath: 'none' }, at),
-      })
+      const copyDone = Math.max(...lines.map((line, index) => typography.type(
+        timeline, line.element, copyCursor, typography.caret(), copyClicked + 0.26 + index * 0.045, 1.15,
+      )))
       timeline.to(copyFrame, { opacity: 0, duration: 0.15 }, copyDone)
       const layoutDone = layout.play({ timeline, cursor: copyCursor, role: 'HeroCopy', at: copyDone + 0.1,
         own: (element, _role, task, phase, at) => own(copyCursor, [element], task, at, phase),
@@ -195,16 +208,16 @@ export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
       timeline.to(copyCursor, { opacity: 0, duration: 0.2 }, layoutDone)
 
       // Metadata gets two dedicated collaborators instead of waiting for copy.
-      const editionDone = type(edition, topCursor, topFrame, topCaret, 0.18, 0.026)
-      const topDone = type(number, topCursor, topFrame, topCaret, editionDone + 0.08, 0.026, 0.65)
+      type(edition, topCursor, topFrame, topCaret, 0.18, 0.026)
+      const topDone = type(number, topCursor, topFrame, topCaret, 0.24, 0.026, 0.35)
       timeline.to(topCursor, { x: number.box.right - 20, y: number.box.bottom + 28, opacity: 0, duration: 0.24 }, topDone)
 
       timeline.to(bottomCursor, { x: cueBox.left, y: cueBox.top, opacity: 1, duration: 0.3 }, 0.2)
       timeline.set(cue, { opacity: 1 }, 0.5)
       timeline.to(cue, { scaleX: 1, duration: 0.3 }, 0.5)
       timeline.to(bottomCursor, { x: cueBox.right, y: cueBox.top, duration: 0.3 }, 0.5)
-      const scrollDone = type(scroll, bottomCursor, bottomFrame, bottomCaret, 0.9, 0.026, 0.18)
-      const bottomDone = type(since, bottomCursor, bottomFrame, bottomCaret, scrollDone + 0.08, 0.026, 0.65)
+      type(scroll, bottomCursor, bottomFrame, bottomCaret, 0.9, 0.026, 0.18)
+      const bottomDone = type(since, bottomCursor, bottomFrame, bottomCaret, 0.95, 0.026, 0.35)
       timeline.to(bottomCursor, { x: since.box.right - 20, y: since.box.bottom - 22, opacity: 0, duration: 0.24 }, bottomDone)
       durationMs = timeline.duration() / timeline.timeScale() * 1000
     })

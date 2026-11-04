@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { createTaskCursors } from './task-cursors'
 import { createTypographyPass } from './typography-pass'
 import { createLayoutPass } from './layout-pass'
 
@@ -22,10 +23,11 @@ type Box = { left: number; top: number; width: number; height: number }
 export function createNavigationScene(targets: NavigationTargets, onComplete: () => void) {
   const { header, logo, menu, clock, design, copy, build, region, designSelection, copySelection, buildSelection, divider } = targets
   const context = gsap.context(() => undefined)
-  const layout = createLayoutPass(header, 'navigation')
-  context.add(layout.prepare)
+  // Measure both final gaps before either draft offset is applied.
+  const layouts = [createLayoutPass(header, 'navigation'), createLayoutPass(header, 'navigation-contact')]
+  layouts.forEach(layout => context.add(layout.prepare))
+  const spacingWorkers = createTaskCursors(design.parentElement!)
   const typography = createTypographyPass(design.parentElement!)
-  const menuCaret = typography.caret()
   const clockCaret = typography.caret()
   let durationMs = 0
   const owned = new Set<HTMLElement>([menu, clock, design, copy, build])
@@ -44,7 +46,8 @@ export function createNavigationScene(targets: NavigationTargets, onComplete: ()
   })
   const clearLetters = () => {
     typography.cleanup()
-    layout.cleanup()
+    layouts.forEach(layout => layout.cleanup())
+    spacingWorkers.cleanup()
     for (const node of owned) {
       node.removeAttribute('data-build-owner'); node.removeAttribute('data-build-phase'); node.removeAttribute('data-build-task')
     }
@@ -99,21 +102,23 @@ export function createNavigationScene(targets: NavigationTargets, onComplete: ()
 
       const own = (element: HTMLElement, cursor: HTMLElement, task: string, phase: string, at: number) => {
         owned.add(element)
-        timeline.set(element, { attr: { 'data-build-owner': cursor.dataset.buildCursor!, 'data-build-phase': phase } }, at)
+        timeline.set(element, { attr: { 'data-build-owner': cursor.dataset.taskCursor ?? cursor.dataset.buildCursor!, 'data-build-phase': phase } }, at)
         timeline.set(cursor, { opacity: 1, attr: { 'data-build-task': task, 'data-build-phase': phase } }, at)
       }
       const release = (element: HTMLElement, cursor: HTMLElement, at: number) => {
         timeline.set(element, { attr: { 'data-build-phase': 'complete' } }, at)
-        timeline.set(cursor, { attr: { 'data-build-phase': 'idle', 'data-build-task': '' } }, at)
+        timeline.set(cursor, { opacity: 0, attr: { 'data-build-phase': 'idle', 'data-build-task': '' } }, at)
       }
       const menuDrawn = drawBox(padded(menuBox, 5), copy, copySelection, 1.02, 0.2, 0.24)
-      own(menu, copy, 'menu-text', 'typing', menuDrawn)
-      const menuEnd = typography.type(timeline, menu, copy, menuCaret, menuDrawn + 0.1, 0.75, {
-        text: Array.from(menu.querySelectorAll('[data-build-source]'), node => node.textContent).join('    '),
-      })
+      const links = Array.from(menu.querySelectorAll<HTMLElement>('a'))
+      gsap.set(links, { opacity: 0 })
+      timeline.set(menu, { opacity: 1 }, menuDrawn)
+      // Work, Stack and Contact are separate editable fields, typed together.
+      const menuEnd = Math.max(...links.map((link, index) => typography.type(
+        timeline, link, copy, typography.caret(), menuDrawn + 0.1 + index * 0.035, 0.55,
+      )))
       timeline.to(copySelection, { opacity: 0, duration: 0.1 }, menuEnd)
       release(menu, copy, menuEnd)
-      timeline.to(copy, { opacity: 0, duration: 0.18 }, menuEnd + 0.1)
 
       const clockDrawn = drawBox(padded(clockBox), build, buildSelection, 1.2, 0.2, 0.24)
       own(clock, build, 'hanoi-clock', 'typing', clockDrawn)
@@ -121,11 +126,22 @@ export function createNavigationScene(targets: NavigationTargets, onComplete: ()
       timeline.to(buildSelection, { opacity: 0, duration: 0.1 }, clockEnd)
       release(clock, build, clockEnd)
       timeline.to(build, { opacity: 0, duration: 0.18 }, clockEnd + 0.1)
-      const layoutDone = layout.play({ timeline, cursor: design, role: 'Design', at: Math.max(menuEnd, clockEnd) + 0.15,
-        own: (element, _role, task, phase, at) => own(element, design, task, phase, at),
-        release: (element, _role, at) => release(element, design, at),
+      const spacingAt = Math.max(menuEnd, clockEnd) + 0.15
+      layouts.forEach((layout, index) => {
+        const target = links[index + 1]
+        const cursor = spacingWorkers.create(index === 0 ? 'adjust Work–Stack gap' : 'adjust Stack–Contact gap', target)
+        layout.play({ timeline, cursor, role: cursor.dataset.taskCursor!, at: spacingAt,
+          own: (element, _role, _task, phase, at) => {
+            const box = element.getBoundingClientRect()
+            spacingWorkers.start(timeline, cursor, at, box.left, box.top)
+            own(element, cursor, cursor.dataset.buildTask!, phase, at)
+          },
+          release: (element, _role, at) => {
+            timeline.set(element, { attr: { 'data-build-phase': 'complete' } }, at)
+            spacingWorkers.end(timeline, cursor, at)
+          },
+        })
       })
-      timeline.to(design, { opacity: 0, duration: 0.18 }, layoutDone)
       durationMs = timeline.duration() / timeline.timeScale() * 1000
 
     })

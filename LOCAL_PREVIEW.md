@@ -25,7 +25,11 @@ Open http://127.0.0.1:3003/. The separate cursor playground uses port 4173.
 
 ## Scene behavior
 
-Navigation has separate owners for the logo, menu and Hanoi clock. Hero adds four owners for the title, introduction and top/bottom metadata. Every active task has a randomly named arrowhead cursor; timelines run at 0.75× speed.
+Cursors are allocated to actual operations rather than multiplied by a fixed factor. Navigation's Work, Stack and Contact links have three simultaneous writers. Both adjacent gaps begin at 16px and are adjusted together by separate spacing workers. Hero metadata and introduction lines are independent jobs. Text is entered by one cursor per draft line, following the caret; a separate cursor applies final typography after those lines finish. Short labels remain a single line.
+
+Project metadata fields, title, description lines, individual tags and external URL run independently. One image worker submits the whole-image reveal and leaves; the tile animation completes automatically. Stack keywords are styled in parallel. Contribution columns, signal bars, ticker indicators and score values each have their own worker. Social columns retain the duplication gesture; after both copies land, their names and URLs are edited concurrently.
+
+Workers appear only during their assigned operation and leave on completion. There are no follower cursors, inspection passes or filler loops. New worker DOM belongs to the scene cleanup, names are unique among allocated workers, and all tasks share the existing 0.75× timeline speed.
 
 Content is built in place: create a region, draw a box, type text or reveal the existing image through generation tiles. Image generation is an animation using existing portfolio assets, not an external generation request.
 

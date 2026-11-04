@@ -270,3 +270,7 @@
   .sectionScope:not([data-scene-state='complete']) [data-magnet],
   .sectionScope:not([data-scene-state='complete']) :global(.pf-imgph__img) { transform: none !important; transition: none; }
 }
+
+/* Task colors must not inherit the fixed Hero label's opposing left/right anchors. */
+.cursor[data-task-cursor] .cursorLabel { left: 12px; right: auto; }
+.cursor[data-task-cursor][data-dock='left'] .cursorLabel { left: auto; right: 12px; }

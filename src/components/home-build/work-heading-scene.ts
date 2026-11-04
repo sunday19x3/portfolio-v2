@@ -86,7 +86,7 @@ export function createWorkHeadingScene(root: HTMLElement, onComplete: () => void
       }
       const release = (element: HTMLElement, cursor: HTMLElement, at: number) => {
         tl.set(element, { attr: { 'data-build-phase': 'complete' } }, at)
-        tl.set(cursor, { attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
+        tl.set(cursor, { opacity: 0, attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
       }
       const draw = (bounds: Box, cursor: HTMLElement, frame: HTMLElement, at: number) => {
         const edges = parts.get(frame)!
