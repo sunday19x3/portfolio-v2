@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { exitCursor } from './cursor-exit'
 import { createTaskCursors } from './task-cursors'
 import { createTypographyPass } from './typography-pass'
 import { createLayoutPass } from './layout-pass'
@@ -98,7 +99,7 @@ export function createNavigationScene(targets: NavigationTargets, onComplete: ()
       }
       timeline.to(logoPath, { fillOpacity: 1, strokeOpacity: 0, duration: 0.18 }, 2.18)
       timeline.to(designSelection, { opacity: 0, duration: 0.15 }, 2.4)
-      timeline.to(design, { x: logoBox.right + 28, y: headerBox.bottom + 38, opacity: 0, duration: 0.25 }, 2.55)
+      exitCursor(timeline, design, 2.55)
 
       const own = (element: HTMLElement, cursor: HTMLElement, task: string, phase: string, at: number) => {
         owned.add(element)
@@ -107,7 +108,8 @@ export function createNavigationScene(targets: NavigationTargets, onComplete: ()
       }
       const release = (element: HTMLElement, cursor: HTMLElement, at: number) => {
         timeline.set(element, { attr: { 'data-build-phase': 'complete' } }, at)
-        timeline.set(cursor, { opacity: 0, attr: { 'data-build-phase': 'idle', 'data-build-task': '' } }, at)
+        exitCursor(timeline, cursor, at)
+        timeline.set(cursor, { attr: { 'data-build-phase': 'idle', 'data-build-task': '' } }, at)
       }
       const menuDrawn = drawBox(padded(menuBox, 5), copy, copySelection, 1.02, 0.2, 0.24)
       const links = Array.from(menu.querySelectorAll<HTMLElement>('a'))
@@ -125,7 +127,7 @@ export function createNavigationScene(targets: NavigationTargets, onComplete: ()
       const clockEnd = typography.type(timeline, clock, build, clockCaret, clockDrawn + 0.1, 0.65)
       timeline.to(buildSelection, { opacity: 0, duration: 0.1 }, clockEnd)
       release(clock, build, clockEnd)
-      timeline.to(build, { opacity: 0, duration: 0.18 }, clockEnd + 0.1)
+      exitCursor(timeline, build, clockEnd + 0.1)
       const spacingAt = Math.max(menuEnd, clockEnd) + 0.15
       layouts.forEach((layout, index) => {
         const target = links[index + 1]

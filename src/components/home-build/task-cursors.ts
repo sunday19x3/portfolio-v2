@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { CURSOR_EXIT_DURATION, exitCursor } from './cursor-exit'
 import { assignCursorNames } from './BuildPrimitives'
 import styles from './home-build.module.css'
 
@@ -33,8 +34,8 @@ export function createTaskCursors(overlay: HTMLElement, register?: (node: HTMLEl
     tl.to(cursor, { opacity: 1, duration: 0.08 }, at)
   }
   const end = (tl: gsap.core.Timeline, cursor: HTMLElement, at: number) => {
-    tl.to(cursor, { opacity: 0, duration: 0.1 }, at)
-    tl.set(cursor, { attr: { 'data-build-phase': 'complete' } }, at + 0.1)
+    exitCursor(tl, cursor, at)
+    tl.set(cursor, { attr: { 'data-build-phase': 'complete' } }, at + CURSOR_EXIT_DURATION)
   }
   return { create, start, end, cleanup: () => nodes.forEach(node => node.remove()) }
 }

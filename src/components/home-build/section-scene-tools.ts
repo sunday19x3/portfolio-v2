@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { exitCursor } from './cursor-exit'
 import { createTaskCursors } from './task-cursors'
 import { sectionTextStyles } from './text-style-pass'
 import { styleClick } from './style-click'
@@ -59,7 +60,8 @@ export function createSceneTools(root: HTMLElement, onComplete: () => void) {
   }
   const release = (element: HTMLElement, role: SceneRole, at: number) => {
     tl.set(element, { attr: { 'data-build-phase': 'complete' } }, at)
-    tl.set(cursorFor(role), { opacity: 0, attr: { 'data-build-phase': 'idle', 'data-build-task': '' } }, at)
+    exitCursor(tl, cursorFor(role), at)
+    tl.set(cursorFor(role), { attr: { 'data-build-phase': 'idle', 'data-build-task': '' } }, at)
     lastJob.set(role, Math.max(lastJob.get(role) ?? 0, at))
   }
   const draw = (element: HTMLElement, role: SceneRole, at: number, task: string, padding = 4) => {

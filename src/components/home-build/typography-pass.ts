@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { exitCursor } from './cursor-exit'
 import { createTaskCursors } from './task-cursors'
 import { styleClick } from './style-click'
 import styles from './home-build.module.css'
@@ -70,7 +71,7 @@ export function createTypographyPass(overlay: HTMLElement) {
     phase(options.inheritFrom ? 'inherited' : 'basic', at)
     tl.set(draft, { opacity: 1 }, at)
     // The incoming frame/selection worker hands off to independent line editors.
-    tl.set(cursor, { opacity: 0 }, at)
+    exitCursor(tl, cursor, at)
     tl.set(caret, { opacity: 0 }, at)
     const rows: number[][] = []
     rects.forEach((rect, index) => {

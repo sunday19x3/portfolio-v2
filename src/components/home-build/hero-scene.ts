@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { exitCursor } from './cursor-exit'
 import { createTaskCursors } from './task-cursors'
 import { styleClick } from './style-click'
 import { createTypographyPass } from './typography-pass'
@@ -112,7 +113,8 @@ export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
       }
       const release = (cursor: HTMLElement, elements: HTMLElement[], at: number) => {
         timeline.set(elements, { attr: { 'data-build-phase': 'complete' } }, at)
-        timeline.set(cursor, { opacity: 0, attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
+        exitCursor(timeline, cursor, at)
+        timeline.set(cursor, { attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
       }
 
       // The four edges grow with transforms. Content and layout never resize.
@@ -187,7 +189,7 @@ export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
       timeline.set(chars[chars.length - 1], { attr: { 'data-build-style-state': 'applied' } }, colored)
       timeline.to(titleFrame, { opacity: 0, duration: 0.18 }, colored + 0.3)
       release(titleCursor, [chars[chars.length - 1]], colored + 0.48)
-      timeline.to(titleCursor, { x: last.right + 22, y: last.top + 30, opacity: 0, duration: 0.24 }, colored + 0.5)
+      exitCursor(timeline, titleCursor, colored + 0.5)
 
       // Each introduction line is an independent writing job.
       const regionDrawn = drawBox(padded(paragraphBox, 10), copyCursor, copyRegion, 0.1, 0.28, 0.34)
@@ -205,12 +207,12 @@ export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
         release: (element, _role, at) => release(copyCursor, [element], at),
       })
       release(copyCursor, [paragraph], layoutDone)
-      timeline.to(copyCursor, { opacity: 0, duration: 0.2 }, layoutDone)
+      exitCursor(timeline, copyCursor, layoutDone)
 
       // Metadata gets two dedicated collaborators instead of waiting for copy.
       type(edition, topCursor, topFrame, topCaret, 0.18, 0.026)
       const topDone = type(number, topCursor, topFrame, topCaret, 0.24, 0.026, 0.35)
-      timeline.to(topCursor, { x: number.box.right - 20, y: number.box.bottom + 28, opacity: 0, duration: 0.24 }, topDone)
+      exitCursor(timeline, topCursor, topDone)
 
       timeline.to(bottomCursor, { x: cueBox.left, y: cueBox.top, opacity: 1, duration: 0.3 }, 0.2)
       timeline.set(cue, { opacity: 1 }, 0.5)
@@ -218,7 +220,7 @@ export function createHeroScene(targets: HeroTargets, onComplete: () => void) {
       timeline.to(bottomCursor, { x: cueBox.right, y: cueBox.top, duration: 0.3 }, 0.5)
       type(scroll, bottomCursor, bottomFrame, bottomCaret, 0.9, 0.026, 0.18)
       const bottomDone = type(since, bottomCursor, bottomFrame, bottomCaret, 0.95, 0.026, 0.35)
-      timeline.to(bottomCursor, { x: since.box.right - 20, y: since.box.bottom - 22, opacity: 0, duration: 0.24 }, bottomDone)
+      exitCursor(timeline, bottomCursor, bottomDone)
       durationMs = timeline.duration() / timeline.timeScale() * 1000
     })
   } catch (error) {

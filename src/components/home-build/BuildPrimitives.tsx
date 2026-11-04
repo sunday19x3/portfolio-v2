@@ -1,6 +1,27 @@
 import styles from './home-build.module.css'
 
-const CURSOR_NAMES = ['Milo', 'Luna', 'Kai', 'Nora', 'Finn', 'Aria', 'Theo', 'Mia', 'Leo', 'Remi', 'Juno', 'Alex', 'Sage', 'Iris', 'Noah', 'Ruby', 'Ezra', 'Zoe', 'Owen', 'Ada', 'Jude', 'Cleo', 'Luca', 'Eden', 'Otis', 'Alma', 'Hugo', 'Isla', 'Elio', 'Romy', 'Leon', 'Vera']
+const CURSOR_NAMES = [
+  'Milo', 'Luna', 'Kai', 'Nora', 'Finn', 'Aria', 'Theo', 'Mia',
+  'Leo', 'Remi', 'Juno', 'Alex', 'Sage', 'Iris', 'Noah', 'Ruby',
+  'Ezra', 'Zoe', 'Owen', 'Ada', 'Jude', 'Cleo', 'Luca', 'Eden',
+  'Otis', 'Alma', 'Hugo', 'Isla', 'Elio', 'Romy', 'Leon', 'Vera',
+  'Aiden', 'Alice', 'Amir', 'Anya', 'Arlo', 'Asher', 'Ava', 'Axel',
+  'Beau', 'Bella', 'Ben', 'Blair', 'Blake', 'Bodhi', 'Briar', 'Bryn',
+  'Caleb', 'Cara', 'Cass', 'Celia', 'Cody', 'Cora', 'Cyrus', 'Daisy',
+  'Dante', 'Dara', 'Dean', 'Demi', 'Drew', 'Dylan', 'Eli', 'Ella',
+  'Ellis', 'Elsa', 'Ember', 'Emil', 'Emma', 'Enzo', 'Esme', 'Evan',
+  'Faye', 'Felix', 'Fern', 'Flora', 'Flynn', 'Freya', 'Gael', 'Gemma',
+  'Gia', 'Grace', 'Gus', 'Hana', 'Hank', 'Hazel', 'Heath', 'Hope',
+  'Ida', 'Imani', 'Inez', 'Isaac', 'Ivan', 'Ivy', 'Jace', 'Jade',
+  'Jasper', 'Jay', 'Jenna', 'Joel', 'Jonah', 'Josie', 'Joy', 'June',
+  'Kara', 'Keira', 'Ken', 'Kian', 'Kira', 'Kit', 'Lana', 'Lara',
+  'Leah', 'Lena', 'Levi', 'Lila', 'Lily', 'Lois', 'Lola', 'Lou',
+  'Mae', 'Mara', 'Marco', 'Maya', 'Micah', 'Miles', 'Mira', 'Nadia',
+  'Nash', 'Nell', 'Nico', 'Nina', 'Noel', 'Nova', 'Olive', 'Omar',
+  'Opal', 'Orion', 'Oscar', 'Paige', 'Pearl', 'Piper', 'Quinn', 'Rae',
+  'Reed', 'Reese', 'Rhea', 'Rhys', 'Rio', 'River', 'Rose', 'Rowan',
+  'Ruth', 'Sam', 'Skye', 'Tara', 'Tess', 'Uma', 'Wren', 'Yara',
+]
 const CURSOR_STYLES = {
   Design: styles.design, Copy: styles.copy, Build: styles.build,
   HeroTitle: styles.heroTitle, HeroCopy: styles.heroCopy,

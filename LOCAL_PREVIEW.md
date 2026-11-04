@@ -29,7 +29,7 @@ Cursors are allocated to actual operations rather than multiplied by a fixed fac
 
 Project metadata fields, title, description lines, individual tags and external URL run independently. One image worker submits the whole-image reveal and leaves; the tile animation completes automatically. Stack keywords are styled in parallel. Contribution columns, signal bars, ticker indicators and score values each have their own worker. Social columns retain the duplication gesture; after both copies land, their names and URLs are edited concurrently.
 
-Workers appear only during their assigned operation and leave on completion. There are no follower cursors, inspection passes or filler loops. New worker DOM belongs to the scene cleanup, names are unique among allocated workers, and all tasks share the existing 0.75× timeline speed.
+Workers appear only during their assigned operation and swoop offscreen like kites on completion. Each departure follows a varied S-shaped curve with a small inward catch and banking arrow before accelerating beyond the nearest edge. The exit lasts about 0.85 seconds at the existing 0.75× timeline speed, stays opaque until offscreen, and is independent of scrolling or the next task. Scene cleanup removes departures immediately on interruption, including reduced motion. There are no follower cursors, inspection passes or filler loops. Names come from a pool of 160 unique names.
 
 Content is built in place: create a region, draw a box, type text or reveal the existing image through generation tiles. Image generation is an animation using existing portfolio assets, not an external generation request.
 

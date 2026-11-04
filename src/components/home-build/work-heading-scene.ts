@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { exitCursor } from './cursor-exit'
 import { styleClick } from './style-click'
 import { createTypographyPass } from './typography-pass'
 import { createLayoutPass } from './layout-pass'
@@ -86,7 +87,8 @@ export function createWorkHeadingScene(root: HTMLElement, onComplete: () => void
       }
       const release = (element: HTMLElement, cursor: HTMLElement, at: number) => {
         tl.set(element, { attr: { 'data-build-phase': 'complete' } }, at)
-        tl.set(cursor, { opacity: 0, attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
+        exitCursor(tl, cursor, at)
+        tl.set(cursor, { attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
       }
       const draw = (bounds: Box, cursor: HTMLElement, frame: HTMLElement, at: number) => {
         const edges = parts.get(frame)!
@@ -121,7 +123,7 @@ export function createWorkHeadingScene(root: HTMLElement, onComplete: () => void
       tl.to(copy, { x: title.box.left + 24, y: title.box.top - 22, scale: 1, duration: 0.15 }, titleDrawn + 0.21)
       const titleDone = type(title, copy, titleCaret, titleDrawn + 0.36, 1.05, 'work-title')
       tl.to(titleFrame, { opacity: 0, duration: 0.12 }, titleDone)
-      tl.to(copy, { y: title.box.top - 42, opacity: 0, duration: 0.2 }, titleDone + 0.12)
+      exitCursor(tl, copy, titleDone + 0.12)
 
       const eyebrowDrawn = draw(padded(eyebrow.box), design, eyebrowFrame, 0.1)
       tl.to(design, { x: eyebrow.box.left + 2, y: eyebrow.box.top + 8, duration: 0.12 }, eyebrowDrawn)
@@ -151,12 +153,12 @@ export function createWorkHeadingScene(root: HTMLElement, onComplete: () => void
       tl.set(word, { opacity: 1, attr: { 'data-build-style-state': 'applied' } }, clicked)
       tl.to(selection, { opacity: 0, duration: 0.15 }, clicked + 0.18)
       release(word, design, clicked + 0.34)
-      tl.to(design, { x: wordBox.right + 20, y: title.box.top - 26, opacity: 0, duration: 0.2 }, clicked + 0.36)
+      exitCursor(tl, design, clicked + 0.36)
       const layoutDone = layout.play({ timeline: tl, cursor: design, role: 'WorkDesign', at: tl.duration() + 0.05,
         own: (element, _role, task, phase, at) => own(element, design, task, phase, at),
         release: (element, _role, at) => release(element, design, at),
       })
-      tl.to(design, { opacity: 0, duration: 0.18 }, layoutDone)
+      exitCursor(tl, design, layoutDone)
       durationMs = tl.duration() / tl.timeScale() * 1000
     })
   } catch (error) {

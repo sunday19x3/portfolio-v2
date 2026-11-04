@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { exitCursor } from './cursor-exit'
 import { createTaskCursors } from './task-cursors'
 import { createTextStylePass } from './text-style-pass'
 import { styleClick } from './style-click'
@@ -98,7 +99,8 @@ export function createTickerScene(root: HTMLElement, onComplete: () => void) {
       }
       const release = (element: HTMLElement, cursor: HTMLElement, at: number) => {
         timeline.set(element, { attr: { 'data-build-phase': 'complete' } }, at)
-        timeline.set(cursor, { opacity: 0, attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
+        exitCursor(timeline, cursor, at)
+        timeline.set(cursor, { attr: { 'data-build-task': '', 'data-build-phase': 'idle' } }, at)
       }
       const draw = (bounds: Box, cursor: HTMLElement, frame: HTMLElement, start: number, travel: number, duration: number) => {
         const parts = frames.get(frame)!
@@ -165,7 +167,7 @@ export function createTickerScene(root: HTMLElement, onComplete: () => void) {
         workers.end(timeline, cursor, at + 0.28)
       })
       release(pips, blue, indicators + 0.42 + 0.12 + pips.children.length * 0.035)
-      timeline.to(blue, { x: pipsBox.left - 14, y: box.bottom + 24, opacity: 0, duration: 0.2 }, indicators + 0.64 + pips.children.length * 0.035)
+      exitCursor(timeline, blue, indicators + 0.64 + pips.children.length * 0.035)
 
       const copyDrawn = draw(padded(rotorBox), copy, copyFrame, 0.54, 0.2, 0.22)
       timeline.to(copy, { x: body.box.left + 1, y: body.box.top + body.box.height / 2, duration: 0.16 }, copyDrawn)
@@ -190,12 +192,12 @@ export function createTickerScene(root: HTMLElement, onComplete: () => void) {
         release(accent.element, copy, styleAt + 0.9)
         styleAt += 0.92
       }
-      timeline.to(copy, { y: box.bottom + 34, opacity: 0, duration: 0.2 }, styleAt)
+      exitCursor(timeline, copy, styleAt)
       const layoutDone = layout.play({ timeline: timeline, cursor: blue, role: 'TickerDesign', at: timeline.duration() + 0.05,
         own: (element, _role, task, phase, at) => own(element, blue, task, phase, at),
         release: (element, _role, at) => release(element, blue, at),
       })
-      timeline.to(blue, { opacity: 0, duration: 0.18 }, layoutDone)
+      exitCursor(timeline, blue, layoutDone)
       durationMs = timeline.duration() / timeline.timeScale() * 1000
     })
   } catch (error) {
