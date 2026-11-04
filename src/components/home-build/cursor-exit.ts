@@ -27,6 +27,18 @@ export function exitCursor(timeline: gsap.core.Timeline, cursor: HTMLElement, at
     flight.removeAttribute('data-build-cursor')
     flight.dataset.exitCursor = ''
     flight.setAttribute('aria-hidden', 'true')
+    // Task/role attributes also control label anchors. Freeze the resolved
+    // geometry before the snapshot loses those selectors during its flight.
+    const label = cursor.querySelector<HTMLElement>('[data-cursor-name]')
+    const flightLabel = flight.querySelector<HTMLElement>('[data-cursor-name]')
+    if (label && flightLabel) {
+      const labelStyle = getComputedStyle(label)
+      Object.assign(flightLabel.style, {
+        left: labelStyle.left, top: labelStyle.top,
+        right: 'auto', bottom: 'auto',
+        width: labelStyle.width, height: labelStyle.height,
+      })
+    }
     x = box.left
     y = box.top
     const margin = 160
